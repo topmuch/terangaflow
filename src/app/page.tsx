@@ -12,6 +12,12 @@ import { AdSlot } from '@/components/display/AdSlot'
 import { StationDashboard } from '@/components/dashboard/station-dashboard'
 import { TransporterDashboard } from '@/components/dashboard/transporter-dashboard'
 import { MonetizationDashboard } from '@/components/dashboard/monetization-dashboard'
+import { InstallPrompt } from '@/components/pwa/install-prompt'
+import { LanguageSwitcher } from '@/components/i18n/language-switcher'
+import { CookieConsent } from '@/components/rgpd/cookie-consent'
+import ApiDocumentation from '@/components/api-docs/api-documentation'
+import ThemeCustomizer from '@/components/whitelist/theme-customizer'
+import { DataPrivacyPanel } from '@/components/rgpd/data-privacy-panel'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -50,6 +56,10 @@ import {
   Building2,
   Shield,
   Loader2,
+  Globe,
+  BookOpen,
+  Palette,
+  ShieldCheck,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -226,8 +236,14 @@ export default function SmartTicketQRPage() {
         )}
       </AnimatePresence>
 
+      {/* Phase 4: PWA Install Prompt */}
+      <InstallPrompt />
+
+      {/* Phase 4: Cookie Consent Banner */}
+      <CookieConsent />
+
       {/* Login Dialog */}
-      <Dialog open={loginOpen} onOpenChange={setLoginOpen}>
+      <Dialog open={loginOpen} onOpenChange={setLoginOpen}}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -329,6 +345,8 @@ function LandingHeader({
             <Wifi className="w-3.5 h-3.5 text-emerald-500" />
             <span>En ligne</span>
           </div>
+
+          <LanguageSwitcher />
 
           {isAuthenticated && user ? (
             <div className="flex items-center gap-2">
@@ -485,7 +503,7 @@ function DashboardView({
   onLogout: () => void
 }) {
   const [selectedStationId, setSelectedStationId] = useState<string | null>(null)
-  const [dashboardTab, setDashboardTab] = useState<'manage' | 'monetization'>('manage')
+  const [dashboardTab, setDashboardTab] = useState<'manage' | 'monetization' | 'api-docs' | 'whitelist' | 'privacy'>('manage')
 
   const isSuperAdmin = user?.role === 'SUPERADMIN'
   const isTransporter = user?.role === 'TRANSPORTER'
@@ -523,27 +541,25 @@ function DashboardView({
             {/* Tab switcher for SuperAdmin: Gestion vs Monétisation */}
             {isSuperAdmin && (
               <div className="hidden sm:flex items-center gap-1 bg-muted/50 rounded-lg p-1">
-                <button
-                  onClick={() => setDashboardTab('manage')}
-                  className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5
-                    ${dashboardTab === 'manage'
-                      ? 'bg-emerald-500 text-white shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                    }`}
-                >
+                <button onClick={() => setDashboardTab('manage')} className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 ${dashboardTab === 'manage' ? 'bg-emerald-500 text-white shadow-sm' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}>
                   <LayoutDashboard className="w-3 h-3" />
                   Gestion
                 </button>
-                <button
-                  onClick={() => setDashboardTab('monetization')}
-                  className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5
-                    ${dashboardTab === 'monetization'
-                      ? 'bg-purple-500 text-white shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                    }`}
-                >
+                <button onClick={() => setDashboardTab('monetization')} className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 ${dashboardTab === 'monetization' ? 'bg-purple-500 text-white shadow-sm' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}>
                   <Crown className="w-3 h-3" />
                   Monétisation
+                </button>
+                <button onClick={() => setDashboardTab('api-docs')} className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 ${dashboardTab === 'api-docs' ? 'bg-sky-500 text-white shadow-sm' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}>
+                  <BookOpen className="w-3 h-3" />
+                  <span className="hidden lg:inline">API</span>
+                </button>
+                <button onClick={() => setDashboardTab('whitelist')} className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 ${dashboardTab === 'whitelist' ? 'bg-rose-500 text-white shadow-sm' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}>
+                  <Palette className="w-3 h-3" />
+                  <span className="hidden lg:inline">Marque</span>
+                </button>
+                <button onClick={() => setDashboardTab('privacy')} className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 ${dashboardTab === 'privacy' ? 'bg-teal-500 text-white shadow-sm' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}>
+                  <ShieldCheck className="w-3 h-3" />
+                  <span className="hidden lg:inline">RGPD</span>
                 </button>
               </div>
             )}
@@ -575,29 +591,45 @@ function DashboardView({
 
       {/* Mobile tab switcher for SuperAdmin */}
       {isSuperAdmin && (
-        <div className="sm:hidden flex border-b bg-card px-4 gap-1">
-          <button
-            onClick={() => setDashboardTab('manage')}
-            className={`flex-1 py-2.5 text-xs font-semibold text-center border-b-2 transition-colors
-              ${dashboardTab === 'manage' ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-muted-foreground'}`}
-          >
+        <div className="sm:hidden flex border-b bg-card px-4 gap-0 overflow-x-auto">
+          <button onClick={() => setDashboardTab('manage')} className={`shrink-0 px-3 py-2.5 text-xs font-semibold text-center border-b-2 transition-colors ${dashboardTab === 'manage' ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-muted-foreground'}`}>
             <LayoutDashboard className="w-4 h-4 mx-auto mb-0.5" />
             Gestion
           </button>
-          <button
-            onClick={() => setDashboardTab('monetization')}
-            className={`flex-1 py-2.5 text-xs font-semibold text-center border-b-2 transition-colors
-              ${dashboardTab === 'monetization' ? 'border-purple-500 text-purple-400' : 'border-transparent text-muted-foreground'}`}
-          >
+          <button onClick={() => setDashboardTab('monetization')} className={`shrink-0 px-3 py-2.5 text-xs font-semibold text-center border-b-2 transition-colors ${dashboardTab === 'monetization' ? 'border-purple-500 text-purple-400' : 'border-transparent text-muted-foreground'}`}>
             <Crown className="w-4 h-4 mx-auto mb-0.5" />
-            Monétisation
+            Monét.
+          </button>
+          <button onClick={() => setDashboardTab('api-docs')} className={`shrink-0 px-3 py-2.5 text-xs font-semibold text-center border-b-2 transition-colors ${dashboardTab === 'api-docs' ? 'border-sky-500 text-sky-400' : 'border-transparent text-muted-foreground'}`}>
+            <BookOpen className="w-4 h-4 mx-auto mb-0.5" />
+            API
+          </button>
+          <button onClick={() => setDashboardTab('whitelist')} className={`shrink-0 px-3 py-2.5 text-xs font-semibold text-center border-b-2 transition-colors ${dashboardTab === 'whitelist' ? 'border-rose-500 text-rose-400' : 'border-transparent text-muted-foreground'}`}>
+            <Palette className="w-4 h-4 mx-auto mb-0.5" />
+            Marque
+          </button>
+          <button onClick={() => setDashboardTab('privacy')} className={`shrink-0 px-3 py-2.5 text-xs font-semibold text-center border-b-2 transition-colors ${dashboardTab === 'privacy' ? 'border-teal-500 text-teal-400' : 'border-transparent text-muted-foreground'}`}>
+            <ShieldCheck className="w-4 h-4 mx-auto mb-0.5" />
+            RGPD
           </button>
         </div>
       )}
 
       <main className="flex-1 overflow-hidden">
-        {/* SuperAdmin: Monetization tab */}
-        {isSuperAdmin && dashboardTab === 'monetization' && effectiveStationId ? (
+        {/* SuperAdmin: API Docs tab */}
+        {isSuperAdmin && dashboardTab === 'api-docs' && effectiveStationId ? (
+          <div className="p-4 md:p-6">
+            <ApiDocumentation stationId={effectiveStationId} />
+          </div>
+        ) : isSuperAdmin && dashboardTab === 'whitelist' && effectiveStationId ? (
+          <div className="p-4 md:p-6">
+            <ThemeCustomizer tenantId={user.tenant?.id || user.id} stationName={stations.find((s) => s.id === effectiveStationId)?.name ?? ''} />
+          </div>
+        ) : isSuperAdmin && dashboardTab === 'privacy' ? (
+          <div className="p-4 md:p-6">
+            <DataPrivacyPanel userId={user.id} />
+          </div>
+        ) : isSuperAdmin && dashboardTab === 'monetization' && effectiveStationId ? (
           <MonetizationDashboard
             tenantId={user.tenant?.id || user.id}
             stationId={effectiveStationId}

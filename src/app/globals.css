@@ -181,3 +181,10 @@
 .display-scroll::-webkit-scrollbar-thumb:hover {
   background: oklch(0.4 0 0 / 50%);
 }
+
+/* --- White Label CSS Variables --- */
+:root {
+  --wl-primary: #10b981;
+  --wl-accent: #14b8a6;
+  --wl-app-name: "SmartTicketQR";
+}

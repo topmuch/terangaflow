@@ -1,0 +1,29 @@
+{
+  "name": "SmartTicketQR",
+  "short_name": "SmartTicket",
+  "description": "Affichage Dynamique Temps Réel pour Gares",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#10b981",
+  "orientation": "any",
+  "scope": "/",
+  "lang": "fr",
+  "dir": "ltr",
+  "categories": ["transport", "travel"],
+  "screenshots": [],
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='64' fill='%230a0a0a'/%3E%3Crect x='40' y='120' width='432' height='260' rx='24' fill='%2310b981'/%3E%3Crect x='72' y='160' width='80' height='60' rx='8' fill='%230a0a0a' opacity='0.3'/%3E%3Crect x='172' y='160' width='80' height='60' rx='8' fill='%230a0a0a' opacity='0.3'/%3E%3Crect x='272' y='160' width='80' height='60' rx='8' fill='%230a0a0a' opacity='0.3'/%3E%3Crect x='372' y='160' width='80' height='60' rx='8' fill='%230a0a0a' opacity='0.3'/%3E%3Crect x='72' y='260' width='80' height='60' rx='8' fill='%230a0a0a' opacity='0.3'/%3E%3Crect x='172' y='260' width='80' height='60' rx='8' fill='%230a0a0a' opacity='0.3'/%3E%3Crect x='272' y='260' width='80' height='60' rx='8' fill='%230a0a0a' opacity='0.3'/%3E%3Crect x='372' y='260' width='80' height='60' rx='8' fill='%230a0a0a' opacity='0.3'/%3E%3Ccircle cx='140' cy='430' r='28' fill='%2310b981'/%3E%3Ccircle cx='140' cy='430' r='14' fill='%230a0a0a'/%3E%3Ccircle cx='372' cy='430' r='28' fill='%2310b981'/%3E%3Ccircle cx='372' cy='430' r='14' fill='%230a0a0a'/%3E%3Crect x='180' y='380' width='152' height='12' rx='6' fill='%2310b981'/%3E%3Ctext x='256' y='80' text-anchor='middle' font-family='sans-serif' font-size='48' font-weight='bold' fill='%2310b981'%3ESmartTicket%3C/text%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='24' fill='%230a0a0a'/%3E%3Crect x='16' y='48' width='160' height='96' rx='10' fill='%2310b981'/%3E%3Crect x='28' y='62' width='30' height='22' rx='3' fill='%230a0a0a' opacity='0.3'/%3E%3Crect x='66' y='62' width='30' height='22' rx='3' fill='%230a0a0a' opacity='0.3'/%3E%3Crect x='104' y='62' width='30' height='22' rx='3' fill='%230a0a0a' opacity='0.3'/%3E%3Crect x='142' y='62' width='30' height='22' rx='3' fill='%230a0a0a' opacity='0.3'/%3E%3Crect x='28' y='98' width='30' height='22' rx='3' fill='%230a0a0a' opacity='0.3'/%3E%3Crect x='66' y='98' width='30' height='22' rx='3' fill='%230a0a0a' opacity='0.3'/%3E%3Crect x='104' y='98' width='30' height='22' rx='3' fill='%230a0a0a' opacity='0.3'/%3E%3Crect x='142' y='98' width='30' height='22' rx='3' fill='%230a0a0a' opacity='0.3'/%3E%3Ccircle cx='54' cy='160' r='10' fill='%2310b981'/%3E%3Ccircle cx='54' cy='160' r='5' fill='%230a0a0a'/%3E%3Ccircle cx='138' cy='160' r='10' fill='%2310b981'/%3E%3Ccircle cx='138' cy='160' r='5' fill='%230a0a0a'/%3E%3Crect x='68' y='142' width='56' height='4' rx='2' fill='%2310b981'/%3E%3C/svg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
