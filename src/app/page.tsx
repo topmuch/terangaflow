@@ -17,6 +17,8 @@ import { AdSlot } from '@/components/display/AdSlot'
 import { StationDashboard } from '@/components/dashboard/station-dashboard'
 import { TransporterDashboard } from '@/components/dashboard/transporter-dashboard'
 import { MonetizationDashboard } from '@/components/dashboard/monetization-dashboard'
+import { Sidebar } from '@/components/dashboard/Sidebar'
+import { StatCard } from '@/components/dashboard/StatCard'
 import { InstallPrompt } from '@/components/pwa/install-prompt'
 import { LanguageSwitcher } from '@/components/i18n/language-switcher'
 import { CookieConsent } from '@/components/rgpd/cookie-consent'
@@ -62,6 +64,9 @@ import {
   Shield,
   Loader2,
   Globe,
+  AlertTriangle,
+  TrendingUp,
+  Route,
   BookOpen,
   Palette,
   ShieldCheck,
@@ -549,7 +554,8 @@ function DashboardView({
   onLogout: () => void
 }) {
   const [selectedStationId, setSelectedStationId] = useState<string | null>(null)
-  const [dashboardTab, setDashboardTab] = useState<'manage' | 'monetization' | 'api-docs' | 'whitelist' | 'privacy'>('manage')
+  const [sidebarTab, setSidebarTab] = useState('overview')
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
   const isSuperAdmin = user?.role === 'SUPERADMIN'
   const isTransporter = user?.role === 'TRANSPORTER'
@@ -559,146 +565,142 @@ function DashboardView({
 
   if (!user) return null
 
+  // Map sidebar tab IDs to content sections
+  const showMonetization = sidebarTab === 'monetization'
+  const showApiDocs = sidebarTab === 'api-docs'
+  const showWhitelist = sidebarTab === 'whitelist'
+  const showPrivacy = sidebarTab === 'privacy'
+  const showStationManage = !showMonetization && !showApiDocs && !showWhitelist && !showPrivacy
+
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      <header className="shrink-0 border-b bg-card px-4 md:px-6 py-3">
-        <div className="flex items-center justify-between">
+    <div className="h-screen flex bg-background overflow-hidden">
+      <Sidebar
+        user={user}
+        activeTab={sidebarTab}
+        onTabChange={(tab) => {
+          setSidebarTab(tab)
+          // Map sidebar IDs to dashboard content
+          if (['overview', 'lines', 'trips', 'schedules', 'settings'].includes(tab)) {
+            // handled by StationDashboard/TransporterDashboard
+          }
+        }}
+        onLogout={onLogout}
+        onBack={onBack}
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+      />
+
+      <main className="flex-1 overflow-y-auto bg-slate-950">
+        {/* Dashboard Header */}
+        <header className="sticky top-0 z-10 border-b border-slate-800 bg-slate-950/80 backdrop-blur-sm px-4 md:px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3 min-w-0">
-            <Button variant="ghost" size="sm" onClick={onBack} className="shrink-0 -ml-2 hover:bg-muted/50">
-              <ChevronLeft className="w-5 h-5" />
-            </Button>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <LayoutDashboard className="w-4 h-4 text-emerald-500 shrink-0" />
-                <h1 className="text-base font-bold truncate">
-                  {isTransporter ? 'Dashboard Transporteur' : `Dashboard Gare`}
-                </h1>
-                <Badge variant="outline" className={`text-xs gap-1 shrink-0 ${getRoleColor(user.role as 'SUPERADMIN' | 'STATION_MANAGER' | 'TRANSPORTER' | 'MERCHANT' | 'TRAVELER')}`}>
-                  {getRoleLabel(user.role as 'SUPERADMIN' | 'STATION_MANAGER' | 'TRANSPORTER' | 'MERCHANT' | 'TRAVELER')}
-                </Badge>
-              </div>
-              <p className="text-xs text-muted-foreground truncate">
-                {user.name} {user.tenant ? `· ${user.tenant.name}` : ''}
-              </p>
+            <h1 className="text-lg font-bold text-white truncate">
+              {sidebarTab === 'overview' && "Vue d'ensemble"}
+              {sidebarTab === 'lines' && 'Gestion des Lignes'}
+              {sidebarTab === 'trips' && 'Départs / Arrivées'}
+              {sidebarTab === 'schedules' && 'Horaires'}
+              {sidebarTab === 'settings' && 'Paramètres'}
+              {sidebarTab === 'monetization' && 'Monétisation'}
+              {sidebarTab === 'api-docs' && 'Documentation API'}
+              {sidebarTab === 'whitelist' && 'White Label'}
+              {sidebarTab === 'privacy' && 'RGPD & Confidentialité'}
+            </h1>
+            <Badge variant="outline" className={`text-xs gap-1 shrink-0 ${getRoleColor(user.role as 'SUPERADMIN' | 'STATION_MANAGER' | 'TRANSPORTER' | 'MERCHANT' | 'TRAVELER')}`}>
+              {getRoleLabel(user.role as 'SUPERADMIN' | 'STATION_MANAGER' | 'TRANSPORTER' | 'MERCHANT' | 'TRAVELER')}
+            </Badge>
+          </div>
+          {isStationManager && (
+            <div className="hidden md:flex items-center gap-1 bg-slate-900 rounded-lg p-1">
+              {stations.map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => setSelectedStationId(s.id)}
+                  className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all
+                    ${effectiveStationId === s.id
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                    }`}
+                >
+                  {s.code}
+                </button>
+              ))}
             </div>
-          </div>
+          )}
+        </header>
 
-          <div className="flex items-center gap-2">
-            {/* Tab switcher for SuperAdmin: Gestion vs Monétisation */}
-            {isSuperAdmin && (
-              <div className="hidden sm:flex items-center gap-1 bg-muted/50 rounded-lg p-1">
-                <button onClick={() => setDashboardTab('manage')} className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 ${dashboardTab === 'manage' ? 'bg-emerald-500 text-white shadow-sm' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}>
-                  <LayoutDashboard className="w-3 h-3" />
-                  Gestion
-                </button>
-                <button onClick={() => setDashboardTab('monetization')} className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 ${dashboardTab === 'monetization' ? 'bg-purple-500 text-white shadow-sm' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}>
-                  <Crown className="w-3 h-3" />
-                  Monétisation
-                </button>
-                <button onClick={() => setDashboardTab('api-docs')} className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 ${dashboardTab === 'api-docs' ? 'bg-sky-500 text-white shadow-sm' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}>
-                  <BookOpen className="w-3 h-3" />
-                  <span className="hidden lg:inline">API</span>
-                </button>
-                <button onClick={() => setDashboardTab('whitelist')} className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 ${dashboardTab === 'whitelist' ? 'bg-rose-500 text-white shadow-sm' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}>
-                  <Palette className="w-3 h-3" />
-                  <span className="hidden lg:inline">Marque</span>
-                </button>
-                <button onClick={() => setDashboardTab('privacy')} className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 ${dashboardTab === 'privacy' ? 'bg-teal-500 text-white shadow-sm' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}>
-                  <ShieldCheck className="w-3 h-3" />
-                  <span className="hidden lg:inline">RGPD</span>
-                </button>
+        <div className="p-4 md:p-6">
+          {/* Overview Tab: StatCards */}
+          {sidebarTab === 'overview' && showStationManage && effectiveStationId && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <StatCard title="Lignes Actives" value={stations.find(s => s.id === effectiveStationId)?._count.lines ?? 0} icon={Route} color="blue" subtitle="En service" />
+                <StatCard title="Départs Aujourd'hui" value={12} icon={Bus} color="emerald" subtitle="Sur 145 prévus" trend={{ value: 8, label: 'vs hier' }} />
+                <StatCard title="Retards en cours" value={3} icon={AlertTriangle} color="red" subtitle="Moy: 8 min" />
+                <StatCard title="Délai Moyen" value="8 min" icon={TrendingUp} color="amber" subtitle="Amélioration -2min" />
               </div>
-            )}
-            {/* Station selector for station managers */}
-            {isStationManager && stations.length > 0 && (
-              <div className="hidden sm:flex items-center gap-1 bg-muted/50 rounded-lg p-1">
-                {stations.map((s) => (
-                  <button
-                    key={s.id}
-                    onClick={() => setSelectedStationId(s.id)}
-                    className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all
-                      ${effectiveStationId === s.id
-                        ? 'bg-emerald-500 text-white shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                      }`}
-                  >
-                    {s.code}
-                  </button>
-                ))}
-              </div>
-            )}
-            <Button variant="ghost" size="sm" className="text-xs text-muted-foreground gap-1" onClick={onLogout}>
-              <LogOut className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Quitter</span>
-            </Button>
-          </div>
-        </div>
-      </header>
 
-      {/* Mobile tab switcher for SuperAdmin */}
-      {isSuperAdmin && (
-        <div className="sm:hidden flex border-b bg-card px-4 gap-0 overflow-x-auto">
-          <button onClick={() => setDashboardTab('manage')} className={`shrink-0 px-3 py-2.5 text-xs font-semibold text-center border-b-2 transition-colors ${dashboardTab === 'manage' ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-muted-foreground'}`}>
-            <LayoutDashboard className="w-4 h-4 mx-auto mb-0.5" />
-            Gestion
-          </button>
-          <button onClick={() => setDashboardTab('monetization')} className={`shrink-0 px-3 py-2.5 text-xs font-semibold text-center border-b-2 transition-colors ${dashboardTab === 'monetization' ? 'border-purple-500 text-purple-400' : 'border-transparent text-muted-foreground'}`}>
-            <Crown className="w-4 h-4 mx-auto mb-0.5" />
-            Monét.
-          </button>
-          <button onClick={() => setDashboardTab('api-docs')} className={`shrink-0 px-3 py-2.5 text-xs font-semibold text-center border-b-2 transition-colors ${dashboardTab === 'api-docs' ? 'border-sky-500 text-sky-400' : 'border-transparent text-muted-foreground'}`}>
-            <BookOpen className="w-4 h-4 mx-auto mb-0.5" />
-            API
-          </button>
-          <button onClick={() => setDashboardTab('whitelist')} className={`shrink-0 px-3 py-2.5 text-xs font-semibold text-center border-b-2 transition-colors ${dashboardTab === 'whitelist' ? 'border-rose-500 text-rose-400' : 'border-transparent text-muted-foreground'}`}>
-            <Palette className="w-4 h-4 mx-auto mb-0.5" />
-            Marque
-          </button>
-          <button onClick={() => setDashboardTab('privacy')} className={`shrink-0 px-3 py-2.5 text-xs font-semibold text-center border-b-2 transition-colors ${dashboardTab === 'privacy' ? 'border-teal-500 text-teal-400' : 'border-transparent text-muted-foreground'}`}>
-            <ShieldCheck className="w-4 h-4 mx-auto mb-0.5" />
-            RGPD
-          </button>
-        </div>
-      )}
+              {/* Rest of overview handled by existing dashboards */}
+              {isTransporter ? (
+                <TransporterDashboard
+                  transporterId={user.tenant?.id || user.id}
+                  transporterName={user.tenant?.name || user.name}
+                  stations={stations.map((s) => ({ id: s.id, name: s.name, code: s.code }))}
+                />
+              ) : effectiveStationId ? (
+                <StationDashboard
+                  stationId={effectiveStationId}
+                  stationName={stations.find((s) => s.id === effectiveStationId)?.name ?? ''}
+                  stationCode={stations.find((s) => s.id === effectiveStationId)?.code ?? ''}
+                />
+              ) : (
+                <div className="flex items-center justify-center h-48 text-slate-500">Sélectionnez une gare</div>
+              )}
+            </div>
+          )}
 
-      <main className="flex-1 overflow-hidden">
-        {/* SuperAdmin: API Docs tab */}
-        {isSuperAdmin && dashboardTab === 'api-docs' && effectiveStationId ? (
-          <div className="p-4 md:p-6">
+          {/* Station Management Tabs */}
+          {(sidebarTab === 'lines' || sidebarTab === 'trips' || sidebarTab === 'schedules' || sidebarTab === 'settings') && showStationManage && effectiveStationId && (
+            <StationDashboard
+              stationId={effectiveStationId}
+              stationName={stations.find((s) => s.id === effectiveStationId)?.name ?? ''}
+              stationCode={stations.find((s) => s.id === effectiveStationId)?.code ?? ''}
+            />
+          )}
+
+          {/* Monetization Tab */}
+          {isSuperAdmin && showMonetization && effectiveStationId && (
+            <MonetizationDashboard
+              tenantId={user.tenant?.id || user.id}
+              stationId={effectiveStationId}
+              stationName={stations.find((s) => s.id === effectiveStationId)?.name ?? ''}
+              userId={user.id}
+            />
+          )}
+
+          {/* API Docs Tab */}
+          {isSuperAdmin && showApiDocs && effectiveStationId && (
             <ApiDocumentation stationId={effectiveStationId} />
-          </div>
-        ) : isSuperAdmin && dashboardTab === 'whitelist' && effectiveStationId ? (
-          <div className="p-4 md:p-6">
+          )}
+
+          {/* White Label Tab */}
+          {isSuperAdmin && showWhitelist && effectiveStationId && (
             <ThemeCustomizer tenantId={user.tenant?.id || user.id} stationName={stations.find((s) => s.id === effectiveStationId)?.name ?? ''} />
-          </div>
-        ) : isSuperAdmin && dashboardTab === 'privacy' ? (
-          <div className="p-4 md:p-6">
+          )}
+
+          {/* Privacy Tab */}
+          {isSuperAdmin && showPrivacy && (
             <DataPrivacyPanel userId={user.id} />
-          </div>
-        ) : isSuperAdmin && dashboardTab === 'monetization' && effectiveStationId ? (
-          <MonetizationDashboard
-            tenantId={user.tenant?.id || user.id}
-            stationId={effectiveStationId}
-            stationName={stations.find((s) => s.id === effectiveStationId)?.name ?? ''}
-            userId={user.id}
-          />
-        ) : isTransporter ? (
-          <TransporterDashboard
-            transporterId={user.tenant?.id || user.id}
-            transporterName={user.tenant?.name || user.name}
-            stations={stations.map((s) => ({ id: s.id, name: s.name, code: s.code }))}
-          />
-        ) : effectiveStationId ? (
-          <StationDashboard
-            stationId={effectiveStationId}
-            stationName={stations.find((s) => s.id === effectiveStationId)?.name ?? ''}
-            stationCode={stations.find((s) => s.id === effectiveStationId)?.code ?? ''}
-          />
-        ) : (
-          <div className="flex items-center justify-center h-full">
-            <p className="text-muted-foreground">Sélectionnez une gare</p>
-          </div>
-        )}
+          )}
+
+          {/* Transporter Tabs */}
+          {isTransporter && showStationManage && (
+            <TransporterDashboard
+              transporterId={user.tenant?.id || user.id}
+              transporterName={user.tenant?.name || user.name}
+              stations={stations.map((s) => ({ id: s.id, name: s.name, code: s.code }))}
+            />
+          )}
+        </div>
       </main>
     </div>
   )
