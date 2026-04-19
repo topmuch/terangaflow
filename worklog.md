@@ -380,3 +380,25 @@ Stage Summary:
 - All auth + dashboard infrastructure operational
 - Zero lint errors
 - Platform ready for next phase
+
+---
+Task ID: p3-crud
+Agent: Main Architect
+Task: Phase 3 — CRUD Lignes, Départs & Import CSV
+
+Work Log:
+- Created src/lib/csvParser.ts — Lightweight CSV parser with parseCSV(), validateRow(), generateScheduleTemplate(), downloadCSV()
+- Created src/app/api/schedules/import/route.ts — POST endpoint for CSV bulk import, validates rows, creates Schedule records via Prisma
+- Created src/components/dashboard/CsvUploader.tsx — Drag & drop CSV uploader with 6-state machine (idle/dragging/preview/uploading/success/error), CSV preview table, template download
+- Created src/components/dashboard/LineForm.tsx — Standalone create/edit dialog for lines with code, type, name, destination, frequency, color picker
+- Created src/components/dashboard/TripTable.tsx — Full schedules management: line/status filters, search, status cycling, bulk actions (delay/cancel/reset), integrated CsvUploader
+- Created src/components/dashboard/TickerManager.tsx — Ticker message CRUD with type badges, priority, date ranges, active toggle, edit/delete dialogs
+- Updated src/components/dashboard/station-dashboard.tsx — Replaced inline SchedulesTab with TripTable, TickerTab with TickerManager; reduced from 1711 to 924 lines
+- Fixed CsvUploader export (default → named) for TripTable compatibility
+
+Stage Summary:
+- Phase 3 COMPLETE — 6 new files + 1 modified
+- Full CRUD for lines, schedules/trips, ticker messages
+- CSV bulk import via drag & drop with preview and validation
+- Bulk actions: delay all, cancel all, reset all
+- Zero lint errors, clean compilation
