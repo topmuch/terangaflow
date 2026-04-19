@@ -4,6 +4,11 @@ import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useQuery } from '@tanstack/react-query'
 import { useKioskMode } from '@/hooks/use-kiosk-mode'
+import { useKioskMode as useNewKiosk } from '@/hooks/useKioskMode'
+import { Header as KioskHeader } from '@/components/signage/Header'
+import { Ticker as SignageTicker } from '@/components/signage/Ticker'
+import { DeparturesTable as SignageDepartures } from '@/components/signage/DeparturesTable'
+import { Footer as SignageFooter } from '@/components/signage/Footer'
 import { useAuthStore, getRoleLabel, getRoleColor } from '@/lib/auth-store'
 import { LiveClock } from '@/components/display/LiveClock'
 import { TickerBar } from '@/components/display/TickerBar'
@@ -77,7 +82,7 @@ interface Station {
   _count: { lines: number; platforms: number }
 }
 
-type ViewMode = 'landing' | 'display' | 'dashboard'
+type ViewMode = 'landing' | 'display' | 'kiosk' | 'dashboard'
 
 // ============================================================
 // Main Page Component
@@ -97,6 +102,7 @@ export default function SmartTicketQRPage() {
     preventZoom: false,
     disableContextMenu: false,
   })
+  const newKiosk = useNewKiosk({ autoFullscreen: false, hideCursor: true, preventSleep: true, blockShortcuts: false })
 
   // Fetch stations
   const { data: stationsData, isLoading: stationsLoading } = useQuery({
@@ -136,12 +142,20 @@ export default function SmartTicketQRPage() {
     setSelectedStation(station)
     setViewMode('display')
   }
+  const handleOpenKiosk = (station: Station) => {
+    setSelectedStation(station)
+    setViewMode('kiosk')
+    newKiosk.enable()
+  }
 
   const handleBackToLanding = () => {
     setViewMode('landing')
     setSelectedStation(null)
     if (kiosk.isEnabled) {
       kiosk.disable()
+    }
+    if (newKiosk.isEnabled) {
+      newKiosk.disable()
     }
   }
 
@@ -161,7 +175,7 @@ export default function SmartTicketQRPage() {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        if (viewMode === 'display') handleBackToLanding()
+        if (viewMode === 'display' || viewMode === 'kiosk') handleBackToLanding()
         else if (viewMode === 'dashboard') handleBackFromDashboard()
       }
     }
@@ -193,6 +207,7 @@ export default function SmartTicketQRPage() {
                 stations={stations}
                 isLoading={stationsLoading}
                 onSelect={handleSelectStation}
+                onOpenKiosk={handleOpenKiosk}
               />
             </main>
             <FeaturesSection />
@@ -214,6 +229,28 @@ export default function SmartTicketQRPage() {
               onBack={handleBackToLanding}
               kiosk={kiosk}
             />
+          </motion.div>
+        )}
+
+        {viewMode === 'kiosk' && selectedStation && (
+          <motion.div
+            key="kiosk"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className={`min-h-screen flex flex-col bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white ${newKiosk.isEnabled ? 'kiosk-mode' : ''}`}
+          >
+            <KioskHeader
+              stationName={selectedStation.name}
+              city={`${selectedStation.city}, ${selectedStation.country}`}
+              timezone={selectedStation.timezone}
+            />
+            <SignageTicker stationId={selectedStation.id} />
+            <main className="flex-1 p-4 md:p-6 max-w-[1920px] mx-auto w-full space-y-4">
+              <SignageDepartures stationId={selectedStation.id} refreshMs={30000} />
+            </main>
+            <SignageFooter stationName={selectedStation.name} />
           </motion.div>
         )}
 
@@ -383,10 +420,12 @@ function StationSelector({
   stations,
   isLoading,
   onSelect,
+  onOpenKiosk,
 }: {
   stations: Station[]
   isLoading: boolean
   onSelect: (station: Station) => void
+  onOpenKiosk: (station: Station) => void
 }) {
   return (
     <section className="max-w-7xl mx-auto">
@@ -423,6 +462,7 @@ function StationSelector({
               station={station}
               index={index}
               onSelect={() => onSelect(station)}
+              onOpenKiosk={() => onOpenKiosk(station)}
             />
           ))}
         </div>
@@ -431,25 +471,21 @@ function StationSelector({
   )
 }
 
-function StationCard({ station, index, onSelect }: { station: Station; index: number; onSelect: () => void }) {
+function StationCard({ station, index, onSelect, onOpenKiosk }: { station: Station; index: number; onSelect: () => void; onOpenKiosk: () => void }) {
   const StationIcon = station.code === 'GMD' ? Ship : station.code === 'DKR' ? Bus : Train
 
   return (
-    <motion.button
+    <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.1 + index * 0.1, duration: 0.4 }}
-      whileHover={{ scale: 1.02, y: -2 }}
-      whileTap={{ scale: 0.98 }}
-      onClick={onSelect}
-      className="group relative overflow-hidden rounded-2xl border bg-card p-6 text-left
+      className="group relative overflow-hidden rounded-2xl border bg-card text-left
         hover:border-emerald-500/50 hover:shadow-lg hover:shadow-emerald-500/5
-        transition-all duration-300 focus-visible:outline-none focus-visible:ring-2
-        focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-      aria-label={`Ouvrir l'affichage pour ${station.name}`}
+        transition-all duration-300"
+      aria-label={`Gare: ${station.name}`}
     >
       <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-teal-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-      <div className="relative z-10">
+      <div className="relative z-10 p-6">
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center group-hover:bg-emerald-500/20 transition-colors">
@@ -482,8 +518,18 @@ function StationCard({ station, index, onSelect }: { station: Station; index: nu
             <span>En ligne</span>
           </div>
         </div>
+        <div className="flex gap-2 mt-4">
+          <Button size="sm" className="flex-1 text-xs gap-1.5" onClick={onSelect}>
+            <Monitor className="w-3.5 h-3.5" />
+            Affichage
+          </Button>
+          <Button size="sm" variant="outline" className="flex-1 text-xs gap-1.5 border-blue-500/50 text-blue-400 hover:bg-blue-500/10 hover:text-blue-300" onClick={onOpenKiosk}>
+            <Maximize className="w-3.5 h-3.5" />
+            Kiosk
+          </Button>
+        </div>
       </div>
-    </motion.button>
+    </motion.div>
   )
 }
 

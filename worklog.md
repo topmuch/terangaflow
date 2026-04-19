@@ -260,3 +260,51 @@ Stage Summary:
 - All 4 phases of SmartTicketQR are finished
 - Platform: PWA, i18n (FR/EN/WO), White Label, API Docs, RGPD compliance
 - Zero lint errors, clean compilation
+
+---
+Task ID: p1-signage
+Agent: Full-Stack Developer
+Task: Phase 1 Restruct - Create signage components, hooks, types, API route, mock data
+
+Work Log:
+- Created src/lib/types.ts - TripDisplay, TripStatus, TripType interfaces
+- Created src/hooks/useRealTimeClock.ts - Live clock with timezone + online status
+- Created src/hooks/useKioskMode.ts - Full kiosk mode with fullscreen, cursor, wake lock, shortcuts
+- Created src/components/signage/Header.tsx - Production kiosk header with STQR branding
+- Created src/components/signage/Ticker.tsx - Scrolling ticker with type-based icons/colors
+- Created src/components/signage/DeparturesTable.tsx - 12-col grid with AnimatePresence
+- Created src/components/signage/Footer.tsx - Station footer with last update
+- Created src/app/api/departures/[stationId]/route.ts - Dynamic API with DB query
+- Created src/data/mock.ts - Mock stations and departures data
+
+Stage Summary:
+- All 9 new files created following user spec
+- No existing files modified
+- Ready for integration into page.tsx
+
+---
+Task ID: p1-integrate
+Agent: Main Architect
+Task: Phase 1 Restruct — Integrate signage display into page.tsx, kiosk CSS, validation
+
+Work Log:
+- Updated page.tsx with 6 targeted edits:
+  - Added imports: useKioskMode (new), KioskHeader, SignageTicker, SignageDepartures, SignageFooter
+  - Added 'kiosk' to ViewMode union type
+  - Added handleOpenKiosk() function that enables kiosk mode + navigates
+  - Updated handleBackToLanding() to also disable newKiosk on exit
+  - Updated Escape key handler to include 'kiosk' view mode
+  - Added KioskView block in AnimatePresence with gradient slate-900 background
+  - Updated StationSelector to accept onOpenKiosk prop
+  - Updated StationCard with dual buttons (Affichage + Kiosk)
+- Updated globals.css: added .kiosk-cursor-hidden styles (cursor: none for body and all children)
+- `bun run lint`: 0 errors, 0 warnings
+- Dev server: HTTP 200, compile 2.4s
+- API test: GET /api/departures/dkr-1 → HTTP 200, 793ms, Prisma query executed successfully
+
+Stage Summary:
+- Phase 1 restructure COMPLETE and VALIDATED
+- 9 new files + 2 modified (page.tsx, globals.css)
+- New Kiosk view accessible via blue "Kiosk" button on station cards
+- Dynamic API route /api/departures/[stationId] working with Prisma DB queries
+- Zero lint errors, clean compilation

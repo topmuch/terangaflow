@@ -140,6 +140,14 @@
   touch-action: manipulation !important;
 }
 
+.kiosk-cursor-hidden {
+  cursor: none !important;
+}
+
+.kiosk-cursor-hidden * {
+  cursor: none !important;
+}
+
 .kiosk-mode::-webkit-scrollbar {
   display: none !important;
 }
