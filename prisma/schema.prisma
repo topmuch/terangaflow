@@ -1,0 +1,342 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// SMARTTICKETQR - Complete Database Schema
+// Multi-tenant SaaS for Digital Signage
+// ============================================
+
+// --- TENANT & AUTH ---
+
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  type      String   @default("STATION") // STATION, TRANSPORTER, MERCHANT
+  settings  String   @default("{}")      // JSON: theme, branding, custom config
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  users         User[]
+  stations      Station[]
+  subscriptions Subscription[]
+  invoices      Invoice[]
+}
+
+model User {
+  id         String   @id @default(cuid())
+  email      String   @unique
+  name       String
+  password   String?
+  role       String   @default("TRAVELER") // SUPERADMIN, STATION_MANAGER, TRANSPORTER, MERCHANT, TRAVELER
+  tenantId   String?
+  image      String?
+  isActive   Boolean  @default(true)
+  lastLogin  DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  deletedAt  DateTime?
+
+  tenant       Tenant?  @relation(fields: [tenantId], references: [id])
+  apiKeys      ApiKey[]
+  activityLogs ActivityLog[]
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  userId    String
+  action    String
+  target    String?
+  metadata  String   @default("{}")
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+// --- STATION & INFRASTRUCTURE ---
+
+model Station {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique              // IATA-like code: DLL, DKR
+  city      String
+  country   String   @default("Sénégal")
+  address   String?
+  timezone  String   @default("Africa/Dakar")
+  tenantId  String?
+  isActive  Boolean  @default(true)
+  settings  String   @default("{}")       // JSON: display config, kiosk settings
+  lat       Float?
+  lng       Float?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  tenant         Tenant?      @relation(fields: [tenantId], references: [id])
+  lines          Line[]
+  platforms      Platform[]
+  schedules      Schedule[]
+  tickerMessages TickerMessage[]
+  merchants      Merchant[]
+  displayEvents  DisplayEvent[]
+  apiKeys        ApiKey[]
+  qrScans        QrScan[]
+}
+
+model Line {
+  id              String   @id @default(cuid())
+  name            String
+  code            String                   // e.g. "D1", "T12"
+  destination     String
+  stationId       String
+  transporterId   String?
+  color           String   @default("#10b981") // hex color
+  type            String   @default("BUS")    // BUS, TRAIN, TAXI, FERRY
+  frequencyMinutes Int     @default(30)
+  priceRange      String   @default("0")      // JSON: {min: 500, max: 1500}
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+
+  station   Station   @relation(fields: [stationId], references: [id])
+  platforms Platform[]
+  schedules Schedule[]
+}
+
+model Platform {
+  id        String   @id @default(cuid())
+  number    Int
+  name      String?
+  stationId String
+  lineId    String?
+  type      String   @default("STANDARD")  // STANDARD, VIP, EXPRESS
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  station  Station @relation(fields: [stationId], references: [id])
+  line     Line?   @relation(fields: [lineId], references: [id])
+  schedules Schedule[]
+}
+
+model Schedule {
+  id            String   @id @default(cuid())
+  lineId        String
+  stationId     String
+  platformId    String?
+  departureTime String                       // HH:mm format
+  arrivalTime   String?                      // HH:mm format
+  daysOfWeek    String   @default("1,2,3,4,5,6,7") // comma-separated: 1=Mon, 7=Sun
+  status        String   @default("SCHEDULED")  // SCHEDULED, BOARDING, DEPARTED, DELAYED, CANCELLED
+  delayMinutes  Int      @default(0)
+  vehicleNumber String?
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+
+  line     Line     @relation(fields: [lineId], references: [id])
+  station  Station  @relation(fields: [stationId], references: [id])
+  platform Platform? @relation(fields: [platformId], references: [id])
+}
+
+model TickerMessage {
+  id        String   @id @default(cuid())
+  stationId String
+  content   String
+  priority  Int      @default(0)            // Higher = shown first
+  type      String   @default("INFO")       // INFO, ALERT, AD, URGENT
+  startDate DateTime?
+  endDate   DateTime?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  station Station @relation(fields: [stationId], references: [id])
+}
+
+// --- ANALYTICS & TRACKING (Anonymized per RGPD) ---
+
+model DisplayEvent {
+  id        String   @id @default(cuid())
+  stationId String
+  eventType String                       // IMPRESSION, CLICK, QR_SCAN, VIEW
+  elementId String?                      // Which element was interacted with
+  metadata  String   @default("{}")      // JSON: position, duration, etc.
+  createdAt DateTime @default(now())
+
+  station Station @relation(fields: [stationId], references: [id])
+
+  @@index([stationId, createdAt])
+}
+
+model QrScan {
+  id         String   @id @default(cuid())
+  stationId  String
+  merchantId String?
+  source     String                       // STATION_QR, MERCHANT_QR, AD_QR
+  metadata   String   @default("{}")      // JSON: userAgent, referrer, etc.
+  createdAt  DateTime @default(now())
+
+  station  Station   @relation(fields: [stationId], references: [id])
+  merchant Merchant? @relation(fields: [merchantId], references: [id])
+}
+
+// --- API & BILLING ---
+
+model ApiKey {
+  id          String   @id @default(cuid())
+  userId      String
+  stationId   String?
+  name        String
+  key         String   @unique
+  rateLimit   Int      @default(1000)      // calls per hour
+  isActive    Boolean  @default(true)
+  lastUsedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  user    User           @relation(fields: [userId], references: [id])
+  station Station?       @relation(fields: [stationId], references: [id])
+  usageLogs ApiUsageLog[]
+}
+
+model ApiUsageLog {
+  id         String   @id @default(cuid())
+  apiKeyId   String
+  stationId  String?
+  endpoint   String
+  callsCount Int      @default(1)
+  createdAt  DateTime @default(now())
+
+  apiKey ApiKey @relation(fields: [apiKeyId], references: [id])
+
+  @@index([apiKeyId, createdAt])
+}
+
+// --- MARKETPLACE & MERCHANTS ---
+
+model Merchant {
+  id          String   @id @default(cuid())
+  stationId   String
+  name        String
+  description String?
+  category    String   @default("GENERAL")  // RESTAURANT, SHOP, SERVICE, TRANSPORT
+  logoUrl     String?
+  website     String?
+  phone       String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  station  Station    @relation(fields: [stationId], references: [id])
+  qrScans  QrScan[]
+  offers   Offer[]
+}
+
+model Offer {
+  id         String   @id @default(cuid())
+  merchantId String
+  title      String
+  description String?
+  discountType String @default("PERCENTAGE") // PERCENTAGE, FIXED
+  discountValue Int   @default(0)
+  startDate  DateTime?
+  endDate    DateTime?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  deletedAt  DateTime?
+
+  merchant Merchant @relation(fields: [merchantId], references: [id])
+}
+
+// --- PUSH NOTIFICATIONS ---
+
+// TODO: Intégrer Firebase Cloud Messaging
+model PushSubscription {
+  id         String   @id @default(cuid())
+  stationId  String
+  token      String
+  userAgent  String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  @@index([stationId])
+}
+
+model NotificationLog {
+  id         String   @id @default(cuid())
+  stationId  String
+  title      String
+  body       String
+  type       String   @default("INFO")    // DELAY, PLATFORM_CHANGE, INFO, PROMO
+  sentCount  Int      @default(0)
+  createdAt  DateTime @default(now())
+}
+
+// --- SUBSCRIPTIONS & BILLING ---
+
+model Subscription {
+  id                 String   @id @default(cuid())
+  tenantId           String
+  plan               String   @default("FREE") // FREE, ANALYTICS, MARKETPLACE, WELCOME_PACK, WHITE_LABEL
+  status             String   @default("ACTIVE") // ACTIVE, PAST_DUE, CANCELLED, TRIALING
+  // TODO: Intégrer Stripe pour payment processing
+  stripeSubscriptionId String?
+  currentPeriodStart DateTime @default(now())
+  currentPeriodEnd   DateTime
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id])
+  invoices Invoice[]
+}
+
+model Invoice {
+  id                String   @id @default(cuid())
+  tenantId          String
+  subscriptionId    String?
+  amount            Int                              // Amount in cents (XOF)
+  currency          String   @default("XOF")
+  status            String   @default("PENDING")     // PENDING, PAID, FAILED, CANCELLED
+  description       String?
+  stripeInvoiceId   String?
+  dueDate           DateTime
+  paidAt            DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id])
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id])
+}
+
+// --- WELCOME PACK ---
+
+model WelcomePack {
+  id          String   @id @default(cuid())
+  stationId   String
+  merchantId  String?
+  title       String
+  description String?
+  isActive    Boolean  @default(true)
+  startDate   DateTime?
+  endDate     DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+}
