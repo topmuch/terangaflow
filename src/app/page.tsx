@@ -11,6 +11,7 @@ import { DeparturesTable } from '@/components/display/DeparturesTable'
 import { AdSlot } from '@/components/display/AdSlot'
 import { StationDashboard } from '@/components/dashboard/station-dashboard'
 import { TransporterDashboard } from '@/components/dashboard/transporter-dashboard'
+import { MonetizationDashboard } from '@/components/dashboard/monetization-dashboard'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -38,9 +39,11 @@ import {
   LogOut,
   LayoutDashboard,
   ChevronLeft,
+  DollarSign,
   Zap,
   BarChart3,
   Store,
+  Crown,
   QrCode,
   Clock,
   Users,
@@ -482,21 +485,18 @@ function DashboardView({
   onLogout: () => void
 }) {
   const [selectedStationId, setSelectedStationId] = useState<string | null>(null)
+  const [dashboardTab, setDashboardTab] = useState<'manage' | 'monetization'>('manage')
 
-  // For Station Managers and SuperAdmins: show station selector first, then dashboard
-  // For Transporters: show transporter dashboard directly
-
+  const isSuperAdmin = user?.role === 'SUPERADMIN'
   const isTransporter = user?.role === 'TRANSPORTER'
   const isStationManager = user?.role === 'STATION_MANAGER' || user?.role === 'SUPERADMIN'
 
-  // Compute default station for station managers (no effect needed)
   const effectiveStationId = selectedStationId ?? (isStationManager && stations.length > 0 ? stations[0].id : null)
 
   if (!user) return null
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      {/* Dashboard Header */}
       <header className="shrink-0 border-b bg-card px-4 md:px-6 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3 min-w-0">
@@ -507,7 +507,7 @@ function DashboardView({
               <div className="flex items-center gap-2 flex-wrap">
                 <LayoutDashboard className="w-4 h-4 text-emerald-500 shrink-0" />
                 <h1 className="text-base font-bold truncate">
-                  {isTransporter ? 'Dashboard Transporteur' : 'Dashboard Gare'}
+                  {isTransporter ? 'Dashboard Transporteur' : `Dashboard Gare`}
                 </h1>
                 <Badge variant="outline" className={`text-xs gap-1 shrink-0 ${getRoleColor(user.role as 'SUPERADMIN' | 'STATION_MANAGER' | 'TRANSPORTER' | 'MERCHANT' | 'TRAVELER')}`}>
                   {getRoleLabel(user.role as 'SUPERADMIN' | 'STATION_MANAGER' | 'TRANSPORTER' | 'MERCHANT' | 'TRAVELER')}
@@ -520,6 +520,33 @@ function DashboardView({
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Tab switcher for SuperAdmin: Gestion vs Monétisation */}
+            {isSuperAdmin && (
+              <div className="hidden sm:flex items-center gap-1 bg-muted/50 rounded-lg p-1">
+                <button
+                  onClick={() => setDashboardTab('manage')}
+                  className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5
+                    ${dashboardTab === 'manage'
+                      ? 'bg-emerald-500 text-white shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                    }`}
+                >
+                  <LayoutDashboard className="w-3 h-3" />
+                  Gestion
+                </button>
+                <button
+                  onClick={() => setDashboardTab('monetization')}
+                  className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5
+                    ${dashboardTab === 'monetization'
+                      ? 'bg-purple-500 text-white shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                    }`}
+                >
+                  <Crown className="w-3 h-3" />
+                  Monétisation
+                </button>
+              </div>
+            )}
             {/* Station selector for station managers */}
             {isStationManager && stations.length > 0 && (
               <div className="hidden sm:flex items-center gap-1 bg-muted/50 rounded-lg p-1">
@@ -546,9 +573,38 @@ function DashboardView({
         </div>
       </header>
 
-      {/* Dashboard Content */}
+      {/* Mobile tab switcher for SuperAdmin */}
+      {isSuperAdmin && (
+        <div className="sm:hidden flex border-b bg-card px-4 gap-1">
+          <button
+            onClick={() => setDashboardTab('manage')}
+            className={`flex-1 py-2.5 text-xs font-semibold text-center border-b-2 transition-colors
+              ${dashboardTab === 'manage' ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-muted-foreground'}`}
+          >
+            <LayoutDashboard className="w-4 h-4 mx-auto mb-0.5" />
+            Gestion
+          </button>
+          <button
+            onClick={() => setDashboardTab('monetization')}
+            className={`flex-1 py-2.5 text-xs font-semibold text-center border-b-2 transition-colors
+              ${dashboardTab === 'monetization' ? 'border-purple-500 text-purple-400' : 'border-transparent text-muted-foreground'}`}
+          >
+            <Crown className="w-4 h-4 mx-auto mb-0.5" />
+            Monétisation
+          </button>
+        </div>
+      )}
+
       <main className="flex-1 overflow-hidden">
-        {isTransporter ? (
+        {/* SuperAdmin: Monetization tab */}
+        {isSuperAdmin && dashboardTab === 'monetization' && effectiveStationId ? (
+          <MonetizationDashboard
+            tenantId={user.tenant?.id || user.id}
+            stationId={effectiveStationId}
+            stationName={stations.find((s) => s.id === effectiveStationId)?.name ?? ''}
+            userId={user.id}
+          />
+        ) : isTransporter ? (
           <TransporterDashboard
             transporterId={user.tenant?.id || user.id}
             transporterName={user.tenant?.name || user.name}
