@@ -169,6 +169,18 @@ model TickerMessage {
 
 // --- ANALYTICS & TRACKING (Anonymized per RGPD) ---
 
+model AnalyticsEvent {
+  id          String   @id @default(cuid())
+  stationId   String
+  eventType   String                       // impression, qr_scan, click, screen_on, screen_off
+  focusZone   String?                      // header, departure_row_L10, ad_banner_1
+  timestamp   DateTime @default(now())
+  userAgent   String?
+
+  @@index([stationId, timestamp])
+  @@index([eventType])
+}
+
 model DisplayEvent {
   id        String   @id @default(cuid())
   stationId String
@@ -238,6 +250,10 @@ model Merchant {
   logoUrl     String?
   website     String?
   phone       String?
+  offerText   String?                      // ex: "-10% avec ce code"
+  offerCode   String?                      // ex: GARE10
+  contactUrl  String?                      // WhatsApp ou Site Web
+  imageUrl    String?
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -246,6 +262,8 @@ model Merchant {
   station  Station    @relation(fields: [stationId], references: [id])
   qrScans  QrScan[]
   offers   Offer[]
+
+  @@index([stationId, isActive])
 }
 
 model Offer {

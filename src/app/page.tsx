@@ -5,10 +5,12 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useQuery } from '@tanstack/react-query'
 import { useKioskMode } from '@/hooks/use-kiosk-mode'
 import { useKioskMode as useNewKiosk } from '@/hooks/useKioskMode'
+import { useScreenAnalytics } from '@/hooks/useScreenAnalytics'
 import { Header as KioskHeader } from '@/components/signage/Header'
 import { Ticker as SignageTicker } from '@/components/signage/Ticker'
 import { DeparturesTable as SignageDepartures } from '@/components/signage/DeparturesTable'
 import { Footer as SignageFooter } from '@/components/signage/Footer'
+import { ServicesSection } from '@/components/signage/ServicesSection'
 import { useAuthStore, getRoleLabel, getRoleColor } from '@/lib/auth-store'
 import { LiveClock } from '@/components/display/LiveClock'
 import { TickerBar } from '@/components/display/TickerBar'
@@ -108,6 +110,9 @@ export default function SmartTicketQRPage() {
     disableContextMenu: false,
   })
   const newKiosk = useNewKiosk({ autoFullscreen: false, hideCursor: true, preventSleep: true, blockShortcuts: false })
+
+  // Screen analytics for kiosk display
+  useScreenAnalytics(selectedStation?.id || '')
 
   // Fetch stations
   const { data: stationsData, isLoading: stationsLoading } = useQuery({
@@ -254,6 +259,7 @@ export default function SmartTicketQRPage() {
             <SignageTicker stationId={selectedStation.id} />
             <main className="flex-1 p-4 md:p-6 max-w-[1920px] mx-auto w-full space-y-4">
               <SignageDepartures stationId={selectedStation.id} refreshMs={30000} />
+              <ServicesSection stationId={selectedStation.id} />
             </main>
             <SignageFooter stationName={selectedStation.name} />
           </motion.div>

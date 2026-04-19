@@ -34,11 +34,13 @@ import {
 import {
   Eye, CalendarClock, AlertTriangle, DoorOpen, Plus, Pencil, Trash2,
   Bus, Train, Ship, Clock, CheckCircle2, XCircle,
-  Route, MapPin, Megaphone, Gauge, Timer, BarChart3, RefreshCw,
+  Route, MapPin, Megaphone, Gauge, Timer, BarChart3, RefreshCw, Store,
 } from 'lucide-react'
 
 import { TripTable } from '@/components/dashboard/TripTable'
 import { TickerManager } from '@/components/dashboard/TickerManager'
+import { AnalyticsSection } from '@/components/dashboard/AnalyticsSection'
+import { PartnersSection } from '@/components/dashboard/PartnersSection'
 
 // ============================================================
 // Types
@@ -183,6 +185,14 @@ export function StationDashboard({ stationId, stationName, stationCode }: Statio
               <Megaphone className="w-3.5 h-3.5" />
               Messages
             </TabsTrigger>
+            <TabsTrigger value="partners" className="gap-1.5 text-xs sm:text-sm flex-1 sm:flex-none">
+              <Store className="w-3.5 h-3.5" />
+              Partenaires
+            </TabsTrigger>
+            <TabsTrigger value="analytics" className="gap-1.5 text-xs sm:text-sm flex-1 sm:flex-none">
+              <BarChart3 className="w-3.5 h-3.5" />
+              Analytics
+            </TabsTrigger>
           </TabsList>
         </ScrollArea>
 
@@ -214,6 +224,16 @@ export function StationDashboard({ stationId, stationName, stationCode }: Statio
             {activeTab === 'ticker' && (
               <motion.div key="ticker" variants={tabVariants} initial="initial" animate="animate" exit="exit">
                 <TickerManager stationId={stationId} />
+              </motion.div>
+            )}
+            {activeTab === 'partners' && (
+              <motion.div key="partners" variants={tabVariants} initial="initial" animate="animate" exit="exit">
+                <PartnersSection stationId={stationId} />
+              </motion.div>
+            )}
+            {activeTab === 'analytics' && (
+              <motion.div key="analytics" variants={tabVariants} initial="initial" animate="animate" exit="exit">
+                <AnalyticsSection stationId={stationId} />
               </motion.div>
             )}
           </AnimatePresence>

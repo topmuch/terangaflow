@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { stationId, name, description, category, logoUrl, website, phone } = body
+    const { stationId, name, description, category, logoUrl, website, phone, offerText, offerCode, contactUrl, imageUrl } = body
 
     if (!stationId || !name) {
       return NextResponse.json({ success: false, error: 'stationId and name are required' }, { status: 400 })
@@ -49,6 +49,10 @@ export async function POST(request: NextRequest) {
         logoUrl: logoUrl || null,
         website: website || null,
         phone: phone || null,
+        offerText: offerText || null,
+        offerCode: offerCode || null,
+        contactUrl: contactUrl || null,
+        imageUrl: imageUrl || null,
       },
     })
 
