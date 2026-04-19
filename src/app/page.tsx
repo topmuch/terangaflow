@@ -243,7 +243,7 @@ export default function SmartTicketQRPage() {
       <CookieConsent />
 
       {/* Login Dialog */}
-      <Dialog open={loginOpen} onOpenChange={setLoginOpen}}>
+      <Dialog open={loginOpen} onOpenChange={setLoginOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
