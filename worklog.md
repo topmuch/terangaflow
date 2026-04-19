@@ -49,3 +49,48 @@ Stage Summary:
 - Kiosk mode with fullscreen, wake-lock, and shortcut blocking
 - RGPD-compliant anonymized analytics tracking
 - Responsive design: mobile-first for landing, desktop-first for display
+
+---
+Task ID: 2
+Agent: Main Architect
+Task: Phase 2 - Dashboard Admin & Gestion: CRUD, Auth RBAC, Station/Transporter Dashboards
+
+Work Log:
+- Built Zustand auth store (`src/lib/auth-store.ts`) with:
+  - `useAuthStore` - login/logout state management
+  - `hasPermission()` - RBAC permission checker for 5 roles
+  - `getRoleLabel()` / `getRoleColor()` - French role labels and badge styling
+- Created 8 API routes for Phase 2 CRUD:
+  - `POST /api/auth/login` - Mock login by email (3 demo accounts)
+  - `GET /api/auth/roles` - Available roles with permissions
+  - `GET/POST/PATCH/DELETE /api/lines` - Lines CRUD
+  - `GET/POST/PATCH /api/platforms` - Platforms CRUD
+  - `GET/POST/PATCH/PUT /api/schedules` - Schedules CRUD + bulk update + CSV import
+  - `GET/POST/PATCH/DELETE /api/ticker-messages` - Ticker messages CRUD
+  - `GET /api/analytics/overview` - Dashboard analytics (views, schedules, events)
+- Built Station Manager Dashboard (1,711 lines) with 5 tabs:
+  - Vue d'ensemble: Analytics cards + live departures mini-table
+  - Lignes: Full CRUD table with create dialog, type/color/frequency management
+  - Quais: Platform CRUD with line assignment, type badges (Standard/VIP/Express)
+  - Horaires: Filterable schedules with inline status cycling, bulk delay/cancel, CSV import
+  - Messages: Ticker messages CRUD with type badges, priority, date range
+- Built Transporter Dashboard (1,272 lines) with 4 tabs:
+  - Vue d'ensemble: Stats cards + quick actions (global delay, reset)
+  - Mes Lignes: Lines table with schedule count
+  - Horaires: Schedule management with per-row delay (5/10/15/30/60 min), cancel, restore
+  - Historique: Delay history grouped by date
+- Updated main page with full Phase 2 integration:
+  - Login dialog with demo account quick-select
+  - Role-based routing: Station Manager → Station Dashboard, Transporter → Transporter Dashboard
+  - Station selector tabs in dashboard header (DKR/SLS/GMD)
+  - User badge with role color in header
+  - All 3 view modes: landing → display → dashboard (with Escape key navigation)
+- All API tests passing, all lint checks passing (0 errors)
+
+Stage Summary:
+- 3 demo accounts: SuperAdmin, Station Manager, Transporter
+- Complete CRUD for lines, platforms, schedules, ticker messages
+- Bulk schedule operations: delay all (+15 min), cancel all, reset all
+- CSV import for schedules
+- Analytics overview: views, active/delayed/boarding schedule counts
+- RBAC permission system ready for Phase 3 integration
