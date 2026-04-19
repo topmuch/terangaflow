@@ -402,3 +402,24 @@ Stage Summary:
 - CSV bulk import via drag & drop with preview and validation
 - Bulk actions: delay all, cancel all, reset all
 - Zero lint errors, clean compilation
+
+---
+Task ID: p7-stripe
+Agent: Main Architect
+Task: Phase 7 — Stripe Billing: Checkout, Webhook, Subscription/Invoice APIs, BillingSection UI
+
+Work Log:
+- Created `/src/app/api/stripe/checkout/route.ts` — POST endpoint for Stripe checkout session creation; receives `{ stationId, planType, priceId }`, creates subscription-mode checkout with metadata and success/cancel URLs; returns demo mode response when Stripe not configured
+- Created `/src/app/api/stripe/webhook/route.ts` — POST endpoint for Stripe webhook verification and processing; handles 4 events: checkout.session.completed (upsert BillingSubscription), invoice.payment_succeeded (create InvoiceLog), customer.subscription.deleted (update status to canceled), customer.subscription.updated (update status + period); always returns 200 to prevent retry loops
+- Created `/src/app/api/stripe/subscription/route.ts` — GET endpoint returning current BillingSubscription for a stationId; returns `{ success, data }` with null if none exists
+- Created `/src/app/api/stripe/invoices/route.ts` — GET endpoint returning last 20 InvoiceLog records for a stationId, ordered by createdAt desc; returns `{ success, data }`
+- Created `/src/components/dashboard/BillingSection.tsx` — Client component with `{ stationId }` prop; uses useQuery to fetch subscription and useMutation for checkout; displays 4 plan cards (Analytics Premium 49€, Marketplace Partenaire 29€, Push Pack 19€, White Label 99€) in 2-col md+ grid with dark theme (slate-900); framer-motion card animations; active plan indicator; subscribe buttons redirect to Stripe or show demo toast; uses shadcn/ui Card/Button/Badge + lucide-react icons
+- All API routes use `db` from `@/lib/db` (NOT prisma)
+- Lint check: 0 new errors (pre-existing WhiteLabelSection.tsx error unrelated)
+
+Stage Summary:
+- Phase 7 COMPLETE — 5 new files created
+- Full Stripe billing flow: checkout session → webhook processing → subscription management → invoice tracking
+- Demo mode gracefully handles missing Stripe configuration
+- BillingSection UI with 4 plan cards, active status detection, and Stripe redirect
+- Zero new lint errors

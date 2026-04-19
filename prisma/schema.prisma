@@ -65,31 +65,39 @@ model ActivityLog {
 // --- STATION & INFRASTRUCTURE ---
 
 model Station {
-  id        String   @id @default(cuid())
-  name      String
-  code      String   @unique              // IATA-like code: DLL, DKR
-  city      String
-  country   String   @default("Sénégal")
-  address   String?
-  timezone  String   @default("Africa/Dakar")
-  tenantId  String?
-  isActive  Boolean  @default(true)
-  settings  String   @default("{}")       // JSON: display config, kiosk settings
-  lat       Float?
-  lng       Float?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deletedAt DateTime?
+  id            String   @id @default(cuid())
+  name          String
+  code          String   @unique              // IATA-like code: DLL, DKR
+  city          String
+  country       String   @default("Sénégal")
+  address       String?
+  timezone      String   @default("Africa/Dakar")
+  tenantId      String?
+  isActive      Boolean  @default(true)
+  settings      String   @default("{}")       // JSON: display config, kiosk settings
+  lat           Float?
+  lng           Float?
+  // White Label
+  customDomain  String?  @unique             // ex: gare.sn.smartticketqr.com
+  brandLogo     String?                       // URL du logo personnalise
+  brandColor    String   @default("#10b981") // Couleur principale
+  companyName   String   @default("SmartTicketQR")
+  isWhiteLabel  Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
 
-  tenant         Tenant?      @relation(fields: [tenantId], references: [id])
-  lines          Line[]
-  platforms      Platform[]
-  schedules      Schedule[]
-  tickerMessages TickerMessage[]
-  merchants      Merchant[]
-  displayEvents  DisplayEvent[]
-  apiKeys        ApiKey[]
-  qrScans        QrScan[]
+  tenant               Tenant?              @relation(fields: [tenantId], references: [id])
+  lines                Line[]
+  platforms            Platform[]
+  schedules            Schedule[]
+  tickerMessages        TickerMessage[]
+  merchants            Merchant[]
+  displayEvents        DisplayEvent[]
+  apiKeys              ApiKey[]
+  qrScans              QrScan[]
+  pushCampaigns        PushCampaign[]
+  billingSubscriptions BillingSubscription[]
 }
 
 model Line {
@@ -285,16 +293,37 @@ model Offer {
 
 // --- PUSH NOTIFICATIONS ---
 
-// TODO: Intégrer Firebase Cloud Messaging
 model PushSubscription {
   id         String   @id @default(cuid())
   stationId  String
-  token      String
+  endpoint   String   @unique
+  p256dh     String
+  authKey    String
+  lineIds    String   @default("[]")       // JSON array: ["L10", "L24"] or [] for all
+  alertTypes String   @default("[\"delay\",\"cancellation\"]") // JSON array
   userAgent  String?
   isActive   Boolean  @default(true)
   createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  @@index([stationId])
+  @@unique([stationId, endpoint])
+}
+
+model PushCampaign {
+  id          String   @id @default(cuid())
+  stationId   String
+  title       String
+  body        String
+  targetLines String   @default("[]")      // JSON array: [] = all lines
+  status      String   @default("SENT")    // SENT, FAILED, PARTIAL
+  sentCount   Int      @default(0)
+ failedCount Int      @default(0)
+ costEUR     Float    @default(0)          // 0.01 x sentCount
+  createdAt   DateTime @default(now())
+
+  station Station @relation(fields: [stationId], references: [id])
+
+  @@index([stationId, createdAt])
 }
 
 model NotificationLog {
@@ -305,6 +334,33 @@ model NotificationLog {
   type       String   @default("INFO")    // DELAY, PLATFORM_CHANGE, INFO, PROMO
   sentCount  Int      @default(0)
   createdAt  DateTime @default(now())
+}
+
+// --- STRIPE BILLING ---
+
+model BillingSubscription {
+  id                     String   @id @default(cuid())
+  stationId              String   @unique
+  stripeCustomerId       String   @unique
+  stripeSubscriptionId   String   @unique
+  status                 String   @default("trialing") // active, past_due, canceled, unpaid, trialing
+  planType               String                      // analytics, marketplace, push_pack, white_label
+  currentPeriodEnd       DateTime
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  station Station @relation(fields: [stationId], references: [id])
+}
+
+model InvoiceLog {
+  id               String   @id @default(cuid())
+  stationId        String
+  stripeInvoiceId  String   @unique
+  amountEUR        Float
+  status           String   @default("open")  // paid, open, void, draft
+  createdAt        DateTime @default(now())
+
+  @@index([stationId, createdAt])
 }
 
 // --- SUBSCRIPTIONS & BILLING ---

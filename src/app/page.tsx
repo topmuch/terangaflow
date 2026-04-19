@@ -576,7 +576,10 @@ function DashboardView({
   const showApiDocs = sidebarTab === 'api-docs'
   const showWhitelist = sidebarTab === 'whitelist'
   const showPrivacy = sidebarTab === 'privacy'
-  const showStationManage = !showMonetization && !showApiDocs && !showWhitelist && !showPrivacy
+  const showPush = sidebarTab === 'push'
+  const showBilling = sidebarTab === 'billing'
+  const showWhiteLabel = sidebarTab === 'whitelabel'
+  const showStationManage = !showMonetization && !showApiDocs && !showWhitelist && !showPrivacy && !showPush && !showBilling && !showWhiteLabel
 
   return (
     <div className="h-screen flex bg-background overflow-hidden">
@@ -610,6 +613,9 @@ function DashboardView({
               {sidebarTab === 'api-docs' && 'Documentation API'}
               {sidebarTab === 'whitelist' && 'White Label'}
               {sidebarTab === 'privacy' && 'RGPD & Confidentialité'}
+              {sidebarTab === 'push' && 'Notifications Push'}
+              {sidebarTab === 'billing' && 'Abonnements & Facturation'}
+              {sidebarTab === 'whitelabel' && 'Marque Blanche'}
             </h1>
             <Badge variant="outline" className={`text-xs gap-1 shrink-0 ${getRoleColor(user.role as 'SUPERADMIN' | 'STATION_MANAGER' | 'TRANSPORTER' | 'MERCHANT' | 'TRAVELER')}`}>
               {getRoleLabel(user.role as 'SUPERADMIN' | 'STATION_MANAGER' | 'TRANSPORTER' | 'MERCHANT' | 'TRAVELER')}
@@ -696,6 +702,33 @@ function DashboardView({
           {/* Privacy Tab */}
           {isSuperAdmin && showPrivacy && (
             <DataPrivacyPanel userId={user.id} />
+          )}
+
+          {/* Push Notifications Tab */}
+          {showPush && effectiveStationId && (
+            <StationDashboard
+              stationId={effectiveStationId}
+              stationName={stations.find((s) => s.id === effectiveStationId)?.name ?? ''}
+              stationCode={stations.find((s) => s.id === effectiveStationId)?.code ?? ''}
+            />
+          )}
+
+          {/* Billing Tab */}
+          {showBilling && effectiveStationId && (
+            <StationDashboard
+              stationId={effectiveStationId}
+              stationName={stations.find((s) => s.id === effectiveStationId)?.name ?? ''}
+              stationCode={stations.find((s) => s.id === effectiveStationId)?.code ?? ''}
+            />
+          )}
+
+          {/* White Label Tab */}
+          {showWhiteLabel && effectiveStationId && (
+            <StationDashboard
+              stationId={effectiveStationId}
+              stationName={stations.find((s) => s.id === effectiveStationId)?.name ?? ''}
+              stationCode={stations.find((s) => s.id === effectiveStationId)?.code ?? ''}
+            />
           )}
 
           {/* Transporter Tabs */}

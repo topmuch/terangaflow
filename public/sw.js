@@ -177,3 +177,30 @@ async function networkFirst(request) {
     );
   }
 }
+
+// Push notification event
+self.addEventListener('push', (event) => {
+  if (!event.data) return;
+  const data = event.data.json();
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: '/manifest.json',
+      data: { url: data.url || '/' },
+      tag: data.tag || 'default',
+      renotify: true,
+    })
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    clients.matchAll({ type: 'window' }).then(clientsList => {
+      const url = event.notification.data?.url || '/';
+      const client = clientsList.find(c => c.url.includes(url));
+      if (client) return client.focus();
+      return clients.openWindow(url);
+    })
+  );
+});

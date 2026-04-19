@@ -35,12 +35,16 @@ import {
   Eye, CalendarClock, AlertTriangle, DoorOpen, Plus, Pencil, Trash2,
   Bus, Train, Ship, Clock, CheckCircle2, XCircle,
   Route, MapPin, Megaphone, Gauge, Timer, BarChart3, RefreshCw, Store,
+  Bell, CreditCard, Palette,
 } from 'lucide-react'
 
 import { TripTable } from '@/components/dashboard/TripTable'
 import { TickerManager } from '@/components/dashboard/TickerManager'
 import { AnalyticsSection } from '@/components/dashboard/AnalyticsSection'
 import { PartnersSection } from '@/components/dashboard/PartnersSection'
+import { PushSection } from '@/components/dashboard/PushSection'
+import BillingSection from '@/components/dashboard/BillingSection'
+import { WhiteLabelSection } from '@/components/dashboard/WhiteLabelSection'
 
 // ============================================================
 // Types
@@ -193,6 +197,18 @@ export function StationDashboard({ stationId, stationName, stationCode }: Statio
               <BarChart3 className="w-3.5 h-3.5" />
               Analytics
             </TabsTrigger>
+            <TabsTrigger value="push" className="gap-1.5 text-xs sm:text-sm flex-1 sm:flex-none">
+              <Bell className="w-3.5 h-3.5" />
+              Push
+            </TabsTrigger>
+            <TabsTrigger value="billing" className="gap-1.5 text-xs sm:text-sm flex-1 sm:flex-none">
+              <CreditCard className="w-3.5 h-3.5" />
+              Billing
+            </TabsTrigger>
+            <TabsTrigger value="whitelabel" className="gap-1.5 text-xs sm:text-sm flex-1 sm:flex-none">
+              <Palette className="w-3.5 h-3.5" />
+              Marque
+            </TabsTrigger>
           </TabsList>
         </ScrollArea>
 
@@ -234,6 +250,21 @@ export function StationDashboard({ stationId, stationName, stationCode }: Statio
             {activeTab === 'analytics' && (
               <motion.div key="analytics" variants={tabVariants} initial="initial" animate="animate" exit="exit">
                 <AnalyticsSection stationId={stationId} />
+              </motion.div>
+            )}
+            {activeTab === 'push' && (
+              <motion.div key="push" variants={tabVariants} initial="initial" animate="animate" exit="exit">
+                <PushSection stationId={stationId} />
+              </motion.div>
+            )}
+            {activeTab === 'billing' && (
+              <motion.div key="billing" variants={tabVariants} initial="initial" animate="animate" exit="exit">
+                <BillingSection stationId={stationId} />
+              </motion.div>
+            )}
+            {activeTab === 'whitelabel' && (
+              <motion.div key="whitelabel" variants={tabVariants} initial="initial" animate="animate" exit="exit">
+                <WhiteLabelSection stationId={stationId} />
               </motion.div>
             )}
           </AnimatePresence>

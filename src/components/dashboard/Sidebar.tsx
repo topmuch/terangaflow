@@ -38,6 +38,8 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'monetization', label: 'Monétisation', icon: BarChart3, roles: ['SUPERADMIN'], section: 'Business' },
   { id: 'marketplace', label: 'Marketplace', icon: Store, roles: ['SUPERADMIN'], section: 'Business' },
   { id: 'notifications', label: 'Notifications', icon: Bell, roles: ['SUPERADMIN'], section: 'Business' },
+  { id: 'push', label: 'Push Alerts', icon: Bell, roles: ['STATION_MANAGER', 'SUPERADMIN'], section: 'Business' },
+  { id: 'billing', label: 'Abonnements', icon: Store, roles: ['STATION_MANAGER', 'SUPERADMIN'], section: 'Business' },
   // Section: Outils
   { id: 'api-docs', label: 'Documentation API', icon: BookOpen, roles: ['SUPERADMIN'], section: 'Outils' },
   { id: 'whitelist', label: 'White Label', icon: Palette, roles: ['SUPERADMIN'], section: 'Outils' },
