@@ -92,6 +92,10 @@ const MerchantDashboardComponent = dynamic(
   () => import('@/components/dashboard/merchant-dashboard').then(m => ({ default: m.MerchantDashboard })),
   { ssr: false }
 );
+const KioskDemo = dynamic(
+  () => import('@/components/demo/KioskDemo').then(m => ({ default: m.KioskDemo })),
+  { ssr: false }
+);
 
 /* ============================================================
    ANIMATION HELPERS
@@ -404,98 +408,14 @@ function HeroSection({ onTryDemo }: { onTryDemo: () => void }) {
             </FadeUp>
           </div>
 
-          {/* Right: Hero Mockup */}
+          {/* Right: Kiosk Demo — Live Screen Simulation */}
           <FadeIn delay={0.2} direction="right" className="relative">
-            <div className="relative mx-auto max-w-lg lg:max-w-none">
-              {/* Glow behind mockup */}
-              <div className="absolute -inset-4 bg-gradient-to-br from-cyan-500/20 via-blue-500/10 to-violet-500/20 rounded-3xl blur-2xl" />
-
-              {/* Mockup frame */}
-              <div className="relative glass rounded-2xl p-1 shadow-2xl shadow-cyan-500/10">
-                <div className="rounded-xl overflow-hidden bg-[#0F1629]">
-                  {/* Window chrome */}
-                  <div className="flex items-center gap-2 px-4 py-3 border-b border-white/5">
-                    <div className="flex gap-1.5">
-                      <div className="w-3 h-3 rounded-full bg-red-500/80" />
-                      <div className="w-3 h-3 rounded-full bg-yellow-500/80" />
-                      <div className="w-3 h-3 rounded-full bg-green-500/80" />
-                    </div>
-                    <div className="flex-1 flex justify-center">
-                      <div className="px-4 py-1 rounded-md bg-white/5 text-xs text-slate-400 font-mono">
-                        terangaflow.app/dashboard
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Dashboard mockup content */}
-                  <div className="p-4 sm:p-6 space-y-4">
-                    {/* Header row */}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg gradient-bg-animated flex items-center justify-center">
-                          <Bus className="w-4 h-4 text-white" />
-                        </div>
-                        <div>
-                          <div className="h-3 w-24 bg-white/20 rounded" />
-                          <div className="h-2 w-16 bg-white/10 rounded mt-1" />
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                        <div className="h-2 w-14 bg-white/10 rounded" />
-                      </div>
-                    </div>
-
-                    {/* Stats row */}
-                    <div className="grid grid-cols-3 gap-3">
-                      {[
-                        { label: 'Départs', value: '142', color: 'from-cyan-500/20 to-cyan-500/5' },
-                        { label: 'En retard', value: '3', color: 'from-orange-500/20 to-orange-500/5' },
-                        { label: 'Revenus', value: '€2.4k', color: 'from-violet-500/20 to-violet-500/5' },
-                      ].map((stat) => (
-                        <div
-                          key={stat.label}
-                          className={`rounded-lg bg-gradient-to-b ${stat.color} p-3 border border-white/5`}
-                        >
-                          <div className="text-xs text-slate-400 mb-1">{stat.label}</div>
-                          <div className="text-lg font-bold text-white">{stat.value}</div>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Table mockup */}
-                    <div className="rounded-lg border border-white/5 overflow-hidden">
-                      <div className="grid grid-cols-4 gap-2 px-3 py-2 bg-white/5 text-xs text-slate-400 font-semibold">
-                        <span>Départ</span>
-                        <span>Destination</span>
-                        <span>Quai</span>
-                        <span className="text-right">Statut</span>
-                      </div>
-                      {[
-                        { time: '08:30', dest: 'Thiès', gate: 'A3', status: 'À l\'heure', statusColor: 'bg-emerald-500/20 text-emerald-400' },
-                        { time: '08:45', dest: 'Saint-Louis', gate: 'B1', status: 'Retard 5min', statusColor: 'bg-orange-500/20 text-orange-400' },
-                        { time: '09:00', dest: 'Kaolack', gate: 'A1', status: 'À l\'heure', statusColor: 'bg-emerald-500/20 text-emerald-400' },
-                        { time: '09:15', dest: 'Ziguinchor', gate: 'C2', status: 'À l\'heure', statusColor: 'bg-emerald-500/20 text-emerald-400' },
-                      ].map((row, i) => (
-                        <div key={i} className="grid grid-cols-4 gap-2 px-3 py-2 text-xs border-t border-white/5">
-                          <span className="font-mono font-semibold text-white">{row.time}</span>
-                          <span className="text-slate-300">{row.dest}</span>
-                          <span className="text-slate-400">{row.gate}</span>
-                          <span className={`text-right px-2 py-0.5 rounded-full text-[10px] font-semibold ${row.statusColor}`}>
-                            {row.status}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
+            <div className="relative mx-auto max-w-2xl lg:max-w-none">
               {/* Floating badges */}
               <motion.div
                 animate={{ y: [0, -8, 0] }}
                 transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-                className="absolute -top-4 -right-4 glass rounded-xl px-3 py-2 flex items-center gap-2 shadow-lg shadow-cyan-500/10"
+                className="absolute -top-4 -right-2 z-40 glass rounded-xl px-3 py-2 flex items-center gap-2 shadow-lg shadow-cyan-500/10"
               >
                 <Bell className="w-4 h-4 text-orange-400" />
                 <span className="text-xs font-semibold text-white">+847 push envoyés</span>
@@ -504,11 +424,13 @@ function HeroSection({ onTryDemo }: { onTryDemo: () => void }) {
               <motion.div
                 animate={{ y: [0, 8, 0] }}
                 transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
-                className="absolute -bottom-4 -left-4 glass rounded-xl px-3 py-2 flex items-center gap-2 shadow-lg shadow-violet-500/10"
+                className="absolute -bottom-4 -left-2 z-40 glass rounded-xl px-3 py-2 flex items-center gap-2 shadow-lg shadow-violet-500/10"
               >
                 <TrendingUp className="w-4 h-4 text-emerald-400" />
                 <span className="text-xs font-semibold text-white">+340% revenus pub</span>
               </motion.div>
+
+              <KioskDemo />
             </div>
           </FadeIn>
         </div>
