@@ -107,12 +107,12 @@ function FadeUp({
   className?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true, margin: '-60px' });
+  const isInView = useInView(ref, { once: true, margin: '0px' });
   return (
     <motion.div
       ref={ref}
-      initial={{ opacity: 0, y: 30 }}
-      animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
+      initial={{ opacity: 1, y: 0 }}
+      animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0.85, y: 10 }}
       transition={{ duration: 0.6, delay, ease: 'easeOut' }}
       className={className}
     >
@@ -133,16 +133,16 @@ function FadeIn({
   direction?: 'up' | 'left' | 'right';
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true, margin: '-60px' });
+  const isInView = useInView(ref, { once: true, margin: '0px' });
   const x = direction === 'left' ? -30 : direction === 'right' ? 30 : 0;
   return (
     <motion.div
       ref={ref}
-      initial={{ opacity: 0, y: direction === 'up' ? 30 : 0, x }}
+      initial={{ opacity: 1, y: 0, x: 0 }}
       animate={
         isInView
           ? { opacity: 1, y: 0, x: 0 }
-          : { opacity: 0, y: direction === 'up' ? 30 : 0, x }
+          : { opacity: 0.85, y: direction === 'up' ? 10 : 0, x: x * 0.3 }
       }
       transition={{ duration: 0.6, delay, ease: 'easeOut' }}
       className={className}
@@ -1542,7 +1542,7 @@ export default function TerangaFlowPage() {
         {viewMode === 'landing' && (
           <motion.div
             key="landing"
-            initial={{ opacity: 0 }}
+            initial={{ opacity: 1 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
