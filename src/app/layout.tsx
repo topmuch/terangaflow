@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/toaster";
 import { Providers } from "@/components/providers";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
+  display: "swap",
 });
 
 const geistMono = Geist_Mono({
@@ -15,27 +16,41 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SmartTicketQR — Affichage Dynamique Temps Réel",
-  description: "Plateforme SaaS d'affichage dynamique temps réel pour gares routières et ferroviaires. Départs, arrivées, alertes, et marketplace.",
-  keywords: ["SmartTicketQR", "affichage dynamique", "gare", "transport", "temps réel", "Sénégal", "DOOH"],
-  authors: [{ name: "SmartTicketQR Team" }],
+  title: "TerangaFlow — L'intelligence des gares, l'hospitalité en plus",
+  description:
+    "Transformez vos écrans en sources de revenus avec l'affichage temps réel, la marketplace locale et les notifications push. Plateforme SaaS pour gares routières et ferroviaires en Afrique.",
+  keywords: [
+    "TerangaFlow",
+    "affichage dynamique",
+    "gare",
+    "transport",
+    "temps réel",
+    "Sénégal",
+    "Afrique",
+    "DOOH",
+    "marketplace",
+    "SaaS",
+  ],
+  authors: [{ name: "TerangaFlow Team" }],
   manifest: "/manifest.json",
   icons: {
-    icon: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚌</text></svg>",
-    apple: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚌</text></svg>",
+    icon: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚉</text></svg>",
+    apple:
+      "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚉</text></svg>",
   },
   openGraph: {
-    title: "SmartTicketQR",
-    description: "Affichage Dynamique Temps Réel pour Gares",
+    title: "TerangaFlow — L'intelligence des gares",
+    description:
+      "Plateforme SaaS d'affichage dynamique temps réel pour gares. Affichage, marketplace, push, analytics.",
     type: "website",
   },
   other: {
     "mobile-web-app-capable": "yes",
     "apple-mobile-web-app-capable": "yes",
     "apple-mobile-web-app-status-bar-style": "black-translucent",
-    "apple-mobile-web-app-title": "SmartTicket",
-    "theme-color": "#10b981",
-    "msapplication-TileColor": "#0a0a0a",
+    "apple-mobile-web-app-title": "TerangaFlow",
+    "theme-color": "#0B0F19",
+    "msapplication-TileColor": "#0B0F19",
   },
 };
 
@@ -47,41 +62,18 @@ export default function RootLayout({
   return (
     <html lang="fr" suppressHydrationWarning className="dark">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
+        className={`${inter.variable} ${geistMono.variable} font-sans antialiased bg-background text-foreground`}
       >
-        <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#10b981" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="SmartTicket" />
-        <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="msapplication-TileColor" content="#0a0a0a" />
+        <meta name="theme-color" content="#0B0F19" />
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"
           enableSystem={false}
           disableTransitionOnChange
         >
-          <Providers>
-            {children}
-          </Providers>
+          <Providers>{children}</Providers>
           <Toaster />
         </ThemeProvider>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              if ('serviceWorker' in navigator) {
-                window.addEventListener('load', function() {
-                  navigator.serviceWorker.register('/sw.js').then(function(registration) {
-                    console.log('SmartTicketQR SW registered:', registration.scope);
-                  }).catch(function(error) {
-                    console.log('SmartTicketQR SW registration failed:', error);
-                  });
-                });
-              }
-            `,
-          }}
-        />
       </body>
     </html>
   );
