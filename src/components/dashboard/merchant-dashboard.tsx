@@ -811,7 +811,7 @@ function QrTab({
     async function generateQR() {
       try {
         const QRCode = (await import('qrcode')).default;
-        const dataUrl = await QRCode.toDataURL(publicUrl, {
+        const dataUrl = await QRCode.toDataURL(fullUrl, {
           width: 280,
           margin: 2,
           color: { dark: '#0f172a', light: '#ffffff' },

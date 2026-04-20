@@ -107,15 +107,21 @@ export async function GET(request: NextRequest) {
       select: { name: true, code: true, city: true, timezone: true },
     })
 
-    // Track display event (anonymized per RGPD)
-    await db.displayEvent.create({
-      data: {
-        stationId,
-        eventType: 'VIEW',
-        elementId: `departures-${type.toLowerCase()}`,
-        metadata: JSON.stringify({ type, count: sorted.length }),
-      },
-    })
+    // Track display event (anonymized per RGPD) — only if station exists
+    if (station) {
+      try {
+        await db.displayEvent.create({
+          data: {
+            stationId,
+            eventType: 'VIEW',
+            elementId: `departures-${type.toLowerCase()}`,
+            metadata: JSON.stringify({ type, count: sorted.length }),
+          },
+        })
+      } catch {
+        // Silently fail — don't break the API response for analytics tracking
+      }
+    }
 
     return NextResponse.json({
       success: true,

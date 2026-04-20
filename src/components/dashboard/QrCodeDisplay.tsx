@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Download, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface Props {
@@ -14,8 +15,10 @@ export function QrCodeDisplay({ stationId, merchantId, merchantName }: Props) {
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
 
-  // The public URL that travelers will scan
-  const url = `/p/${stationId}/${merchantId}`;
+  // The public URL that travelers will scan (absolute URL for QR codes)
+  const url = typeof window !== 'undefined'
+    ? `${window.location.origin}/p/${stationId}/${merchantId}`
+    : `/p/${stationId}/${merchantId}`;
 
   useEffect(() => {
     let cancelled = false;
@@ -72,6 +75,26 @@ export function QrCodeDisplay({ stationId, merchantId, merchantName }: Props) {
       <div className="text-center">
         <p className="text-slate-900 font-bold text-sm">{merchantName}</p>
         <p className="text-slate-500 text-xs break-all max-w-[180px] font-mono">{url}</p>
+        <button
+          onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(url);
+              toast.success('URL copiée !');
+            } catch {
+              const input = document.createElement('input');
+              input.value = url;
+              document.body.appendChild(input);
+              input.select();
+              document.execCommand('copy');
+              document.body.removeChild(input);
+              toast.success('URL copiée !');
+            }
+          }}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white
+            rounded-lg transition-colors text-xs font-medium"
+        >
+          Copier l'URL
+        </button>
       </div>
       <button
         onClick={downloadQR}
