@@ -67,3 +67,12 @@ server.log
 # Upload & temp
 /upload/
 /download/
+
+# Z scripts
+/.zscripts/
+
+# Examples
+/examples/
+
+# Mini services
+/mini-services/
