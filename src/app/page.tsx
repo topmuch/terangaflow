@@ -1301,11 +1301,24 @@ function DashboardView({
 
   if (!user) return null;
 
+  // Map sidebar tabs to StationDashboard internal tabs
+  const sidebarToStationTab: Record<string, string> = {
+    overview: 'overview',
+    lines: 'lines',
+    trips: 'schedules',
+    schedules: 'schedules',
+    settings: 'overview',
+    push: 'push',
+    billing: 'billing',
+    whitelabel: 'whitelabel',
+  };
+  const stationInitialTab = sidebarToStationTab[sidebarTab] || 'overview';
+
   const showMonetization = sidebarTab === 'monetization';
   const showApiDocs = sidebarTab === 'api-docs';
   const showWhitelist = sidebarTab === 'whitelist';
   const showPrivacy = sidebarTab === 'privacy';
-  const showStationManage = !showMonetization && !showApiDocs && !showWhitelist && !showPrivacy && !['push', 'billing', 'whitelabel'].includes(sidebarTab);
+  const showStationManage = !showMonetization && !showApiDocs && !showWhitelist && !showPrivacy;
 
   return (
     <div className="h-screen flex bg-[#0B0F19] overflow-hidden">
@@ -1377,6 +1390,7 @@ function DashboardView({
                   stationId={effectiveStationId}
                   stationName={stations.find((s) => s.id === effectiveStationId)?.name ?? ''}
                   stationCode={stations.find((s) => s.id === effectiveStationId)?.code ?? ''}
+                  initialTab={stationInitialTab}
                 />
               ) : (
                 <div className="flex items-center justify-center h-48 text-slate-500">Sélectionnez une gare</div>
@@ -1388,6 +1402,7 @@ function DashboardView({
               stationId={effectiveStationId}
               stationName={stations.find((s) => s.id === effectiveStationId)?.name ?? ''}
               stationCode={stations.find((s) => s.id === effectiveStationId)?.code ?? ''}
+              initialTab={stationInitialTab}
             />
           )}
           {isSuperAdmin && showMonetization && effectiveStationId && (

@@ -54,6 +54,7 @@ interface StationDashboardProps {
   stationId: string
   stationName: string
   stationCode: string
+  initialTab?: string
 }
 
 interface Line {
@@ -139,8 +140,15 @@ const tabVariants = {
 // Main Component
 // ============================================================
 
-export function StationDashboard({ stationId, stationName, stationCode }: StationDashboardProps) {
-  const [activeTab, setActiveTab] = useState('overview')
+export function StationDashboard({ stationId, stationName, stationCode, initialTab }: StationDashboardProps) {
+  const [activeTab, setActiveTab] = useState(initialTab || 'overview')
+
+  // Sync with external tab changes
+  const [prevInitialTab, setPrevInitialTab] = useState(initialTab || 'overview')
+  if (initialTab && initialTab !== prevInitialTab) {
+    setPrevInitialTab(initialTab)
+    setActiveTab(initialTab)
+  }
 
   return (
     <div className="w-full min-h-0 flex flex-col">
