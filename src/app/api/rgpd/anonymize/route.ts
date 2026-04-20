@@ -1,7 +1,7 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { createHash } from 'crypto'
-import { requireAuth } from '@/lib/auth-helper'
+import { requireAuth, AuthError } from '@/lib/auth-helper'
 
 // POST /api/rgpd/anonymize — Anonymize user personal data (RGPD Art. 17)
 export async function POST(request: NextRequest) {
@@ -15,6 +15,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { success: false, error: 'userId est requis' },
         { status: 400 }
+      )
+    }
+
+    // ── Security: users can only anonymize their OWN data (unless SUPERADMIN) ──
+    if (auth.role !== 'SUPERADMIN' && auth.userId !== userId) {
+      return NextResponse.json(
+        { success: false, error: 'Accès refusé: vous ne pouvez anonymiser que vos propres données' },
+        { status: 403 }
       )
     }
 
@@ -89,6 +97,9 @@ export async function POST(request: NextRequest) {
       },
     })
   } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json({ success: false, error: error.message }, { status: error.statusCode })
+    }
     console.error('[API /rgpd/anonymize POST] Error:', error)
     return NextResponse.json(
       { success: false, error: 'Échec de l\'anonymisation des données' },

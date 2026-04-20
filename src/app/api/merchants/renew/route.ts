@@ -1,9 +1,15 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+import { checkAuth } from '@/lib/auth-helper'
 
 // POST /api/merchants/renew - Merchant renews their subscription
+// Requires: Authenticated user
 export async function POST(request: NextRequest) {
   try {
+    // ── Security: require authenticated user ──
+    const authErr = checkAuth(request)
+    if (authErr) return authErr
+
     const body = await request.json()
     const { merchantId, paymentMethod } = body
 

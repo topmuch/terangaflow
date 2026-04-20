@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+import bcrypt from 'bcryptjs'
 
 // POST /api/merchants/login - Merchant self-login
 export async function POST(request: NextRequest) {
@@ -26,15 +27,33 @@ export async function POST(request: NextRequest) {
     })
 
     if (!merchant || merchant.deletedAt) {
-      // Log failed attempt
       return NextResponse.json(
         { success: false, error: 'Invalid email or password' },
         { status: 401 }
       )
     }
 
-    // 3. Check password (simple plain text comparison for now)
-    if (!merchant.password || merchant.password !== password) {
+    // 3. Check password using bcrypt comparison (supports both hashed and legacy plain-text)
+    let passwordValid = false
+    if (merchant.password) {
+      // Check if password looks like a bcrypt hash (starts with $2)
+      if (merchant.password.startsWith('$2')) {
+        passwordValid = await bcrypt.compare(password, merchant.password)
+      } else {
+        // Legacy plain-text fallback — compare and auto-migrate to bcrypt
+        passwordValid = merchant.password === password
+        if (passwordValid) {
+          // Auto-migrate plain-text password to bcrypt hash
+          const hashedPassword = await bcrypt.hash(password, 12)
+          await db.merchant.update({
+            where: { id: merchant.id },
+            data: { password: hashedPassword },
+          })
+        }
+      }
+    }
+
+    if (!passwordValid) {
       // Log failed attempt
       await db.merchantLogin.create({
         data: {

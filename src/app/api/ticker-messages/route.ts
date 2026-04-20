@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+import { checkAuth } from '@/lib/auth-helper'
 
 // GET /api/ticker-messages - List ticker messages
 export async function GET(request: NextRequest) {
@@ -24,8 +25,11 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/ticker-messages - Create a new ticker message
+// Requires: Authenticated user
 export async function POST(request: NextRequest) {
   try {
+    const authErr = checkAuth(request)
+    if (authErr) return authErr
     const body = await request.json()
     const { stationId, content, priority, type, startDate, endDate } = body
 
@@ -55,8 +59,11 @@ export async function POST(request: NextRequest) {
 }
 
 // PATCH /api/ticker-messages - Update a ticker message
+// Requires: Authenticated user
 export async function PATCH(request: NextRequest) {
   try {
+    const authErr = checkAuth(request)
+    if (authErr) return authErr
     const body = await request.json()
     const { id, ...data } = body
 
@@ -81,8 +88,11 @@ export async function PATCH(request: NextRequest) {
 }
 
 // DELETE /api/ticker-messages - Soft-delete a ticker message
+// Requires: Authenticated user
 export async function DELETE(request: NextRequest) {
   try {
+    const authErr = checkAuth(request)
+    if (authErr) return authErr
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
 

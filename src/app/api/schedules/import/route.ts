@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { parseCSV, validateRow } from '@/lib/csvParser'
+import { checkAuth } from '@/lib/auth-helper'
 
 /**
  * POST /api/schedules/import
  * Bulk-import schedules from a CSV string.
+ * Requires: Authenticated user
  *
  * Body: { stationId: string, csv: string }
  *
@@ -15,6 +17,10 @@ import { parseCSV, validateRow } from '@/lib/csvParser'
  */
 export async function POST(request: NextRequest) {
   try {
+    // ── Security: require authenticated user ──
+    const authErr = checkAuth(request)
+    if (authErr) return authErr
+
     const body = await request.json()
     const { stationId, csv } = body as {
       stationId?: string

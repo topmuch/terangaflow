@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+import { checkAuth } from '@/lib/auth-helper'
 
 // GET /api/offers - List offers (filtered by merchantId)
 export async function GET(request: NextRequest) {
@@ -27,8 +28,11 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/offers - Create offer
+// Requires: Authenticated user
 export async function POST(request: NextRequest) {
   try {
+    const authErr = checkAuth(request)
+    if (authErr) return authErr
     const body = await request.json()
     const { merchantId, title, description, discountType, discountValue, startDate, endDate } = body
 
@@ -55,8 +59,11 @@ export async function POST(request: NextRequest) {
 }
 
 // PATCH /api/offers - Update offer
+// Requires: Authenticated user
 export async function PATCH(request: NextRequest) {
   try {
+    const authErr = checkAuth(request)
+    if (authErr) return authErr
     const body = await request.json()
     const { id, ...data } = body
     if (!id) return NextResponse.json({ success: false, error: 'id is required' }, { status: 400 })
@@ -74,8 +81,11 @@ export async function PATCH(request: NextRequest) {
 }
 
 // DELETE /api/offers - Soft-delete offer
+// Requires: Authenticated user
 export async function DELETE(request: NextRequest) {
   try {
+    const authErr = checkAuth(request)
+    if (authErr) return authErr
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
     if (!id) return NextResponse.json({ success: false, error: 'id is required' }, { status: 400 })

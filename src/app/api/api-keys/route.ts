@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+import { checkAuth } from '@/lib/auth-helper'
 
 // GET /api/api-keys - List API keys for a user/station
 export async function GET(request: NextRequest) {
@@ -54,8 +55,11 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/api-keys - Create API key
+// Requires: Authenticated user
 export async function POST(request: NextRequest) {
   try {
+    const authErr = checkAuth(request)
+    if (authErr) return authErr
     const body = await request.json()
     const { userId, stationId, name, rateLimit } = body
 
@@ -80,8 +84,11 @@ export async function POST(request: NextRequest) {
 }
 
 // PATCH /api/api-keys - Update API key
+// Requires: Authenticated user
 export async function PATCH(request: NextRequest) {
   try {
+    const authErr = checkAuth(request)
+    if (authErr) return authErr
     const body = await request.json()
     const { id, ...data } = body
     if (!id) return NextResponse.json({ success: false, error: 'id is required' }, { status: 400 })
@@ -95,8 +102,11 @@ export async function PATCH(request: NextRequest) {
 }
 
 // DELETE /api/api-keys - Soft-delete API key
+// Requires: Authenticated user
 export async function DELETE(request: NextRequest) {
   try {
+    const authErr = checkAuth(request)
+    if (authErr) return authErr
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
     if (!id) return NextResponse.json({ success: false, error: 'id is required' }, { status: 400 })

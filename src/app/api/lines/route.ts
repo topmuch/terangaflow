@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+import { checkAuth } from '@/lib/auth-helper'
 
 // GET /api/lines - List lines (optionally filtered by stationId)
 export async function GET(request: NextRequest) {
@@ -29,8 +30,11 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/lines - Create a new line
+// Requires: Authenticated user
 export async function POST(request: NextRequest) {
   try {
+    const authErr = checkAuth(request)
+    if (authErr) return authErr
     const body = await request.json()
     const { name, code, destination, stationId, transporterId, color, type, frequencyMinutes, priceRange } = body
 
@@ -63,8 +67,11 @@ export async function POST(request: NextRequest) {
 }
 
 // PATCH /api/lines - Update a line
+// Requires: Authenticated user
 export async function PATCH(request: NextRequest) {
   try {
+    const authErr = checkAuth(request)
+    if (authErr) return authErr
     const body = await request.json()
     const { id, ...data } = body
 
@@ -90,8 +97,11 @@ export async function PATCH(request: NextRequest) {
 }
 
 // DELETE /api/lines - Soft-delete a line
+// Requires: Authenticated user
 export async function DELETE(request: NextRequest) {
   try {
+    const authErr = checkAuth(request)
+    if (authErr) return authErr
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
 

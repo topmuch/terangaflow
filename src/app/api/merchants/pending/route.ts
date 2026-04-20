@@ -1,9 +1,15 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+import { checkRole } from '@/lib/auth-helper'
 
 // GET /api/merchants/pending - List all PENDING merchants (admin dashboard)
+// Requires: SUPERADMIN or STATION_MANAGER
 export async function GET(request: NextRequest) {
   try {
+    // ── Security: require authenticated admin/manager ──
+    const authErr = checkRole(request, ['SUPERADMIN', 'STATION_MANAGER'])
+    if (authErr) return authErr
+
     const { searchParams } = new URL(request.url)
     const stationId = searchParams.get('stationId')
 

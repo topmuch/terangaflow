@@ -1,9 +1,15 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+import { checkRole } from '@/lib/auth-helper'
 
 // POST /api/merchants/suspend - Suspend a merchant
+// Requires: SUPERADMIN or STATION_MANAGER role
 export async function POST(request: NextRequest) {
   try {
+    // ── Security: require authenticated admin/manager ──
+    const authErr = checkRole(request, ['SUPERADMIN', 'STATION_MANAGER'])
+    if (authErr) return authErr
+
     const body = await request.json()
     const { merchantId, reason } = body
 

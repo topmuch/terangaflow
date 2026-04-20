@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+import { checkAuth } from '@/lib/auth-helper'
 
 // GET /api/platforms - List platforms (optionally filtered by stationId)
 export async function GET(request: NextRequest) {
@@ -28,8 +29,11 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/platforms - Create a new platform
+// Requires: Authenticated user
 export async function POST(request: NextRequest) {
   try {
+    const authErr = checkAuth(request)
+    if (authErr) return authErr
     const body = await request.json()
     const { number, name, stationId, lineId, type } = body
 
@@ -58,8 +62,11 @@ export async function POST(request: NextRequest) {
 }
 
 // PATCH /api/platforms - Update a platform
+// Requires: Authenticated user
 export async function PATCH(request: NextRequest) {
   try {
+    const authErr = checkAuth(request)
+    if (authErr) return authErr
     const body = await request.json()
     const { id, ...data } = body
 

@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+import { checkAuth } from '@/lib/auth-helper'
 
 // GET /api/schedules - List schedules with filters
 export async function GET(request: NextRequest) {
@@ -54,8 +55,11 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/schedules - Create a new schedule
+// Requires: Authenticated user
 export async function POST(request: NextRequest) {
   try {
+    const authErr = checkAuth(request)
+    if (authErr) return authErr
     const body = await request.json()
     const { lineId, stationId, platformId, departureTime, daysOfWeek, vehicleNumber } = body
 
@@ -84,9 +88,12 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// PATCH /api/schedules - Update a schedule (change status, delay, platform, etc.)
+// PATCH /api/schedules - Update a schedule
+// Requires: Authenticated user
 export async function PATCH(request: NextRequest) {
   try {
+    const authErr = checkAuth(request)
+    if (authErr) return authErr
     const body = await request.json()
     const { id, ...data } = body
 
@@ -106,9 +113,12 @@ export async function PATCH(request: NextRequest) {
   }
 }
 
-// POST /api/schedules/bulk-update - Bulk status update (delay, cancel, etc.)
+// PUT /api/schedules - Bulk status update
+// Requires: Authenticated user
 export async function PUT(request: NextRequest) {
   try {
+    const authErr = checkAuth(request)
+    if (authErr) return authErr
     const body = await request.json()
     const { stationId, lineId, action, params } = body
 
@@ -157,9 +167,12 @@ export async function PUT(request: NextRequest) {
   }
 }
 
-// POST /api/schedules/csv-import - Import schedules from CSV data
+// IMPORT - Import schedules from CSV data
+// Requires: Authenticated user
 export async function IMPORT(request: NextRequest) {
   try {
+    const authErr = checkAuth(request)
+    if (authErr) return authErr
     const body = await request.json()
     const { stationId, schedules } = body
 

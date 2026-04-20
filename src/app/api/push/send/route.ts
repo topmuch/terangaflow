@@ -1,10 +1,16 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import webPush from 'web-push'
+import { checkRole } from '@/lib/auth-helper'
 
 // POST /api/push/send — Send push notifications in batch
+// Requires: SUPERADMIN or STATION_MANAGER role
 export async function POST(request: NextRequest) {
   try {
+    // ── Security: require authenticated admin/manager ──
+    const authErr = checkRole(request, ['SUPERADMIN', 'STATION_MANAGER'])
+    if (authErr) return authErr
+
     const body = await request.json()
     const { stationId, title, body: message, targetLines } = body
 

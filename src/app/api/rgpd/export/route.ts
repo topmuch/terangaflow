@@ -1,6 +1,6 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth-helper'
+import { requireAuth, AuthError } from '@/lib/auth-helper'
 
 // POST /api/rgpd/export — Export all personal data for a user (RGPD Art. 20)
 export async function POST(request: NextRequest) {
@@ -14,6 +14,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { success: false, error: 'userId est requis' },
         { status: 400 }
+      )
+    }
+
+    // ── Security: users can only export their OWN data (unless SUPERADMIN) ──
+    if (auth.role !== 'SUPERADMIN' && auth.userId !== userId) {
+      return NextResponse.json(
+        { success: false, error: 'Accès refusé: vous ne pouvez exporter que vos propres données' },
+        { status: 403 }
       )
     }
 
@@ -142,6 +150,9 @@ export async function POST(request: NextRequest) {
       data: exportData,
     })
   } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json({ success: false, error: error.message }, { status: error.statusCode })
+    }
     console.error('[API /rgpd/export POST] Error:', error)
     return NextResponse.json(
       { success: false, error: 'Échec de l\'export des données' },

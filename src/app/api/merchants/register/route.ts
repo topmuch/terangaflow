@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+import bcrypt from 'bcryptjs'
 
 // POST /api/merchants/register - Public merchant self-registration
 export async function POST(request: NextRequest) {
@@ -137,6 +138,8 @@ export async function POST(request: NextRequest) {
     }
 
     // 4. Create the merchant in the database with PENDING status
+    // Hash password with bcrypt for secure storage
+    const hashedPassword = password ? await bcrypt.hash(password, 12) : null
     const merchant = await db.merchant.create({
       data: {
         stationId,
@@ -150,7 +153,7 @@ export async function POST(request: NextRequest) {
         offerText: offerText?.trim() || null,
         offerCode: offerCode?.trim() || null,
         email: email ? email.trim().toLowerCase() : null,
-        password: password || null,
+        password: hashedPassword,
         status: 'PENDING',
         planType: resolvedPlanType,
         // For WELCOME_PACK, subscriptionEnd is set to null (will be set on validation)

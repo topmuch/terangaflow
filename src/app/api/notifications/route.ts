@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+import { checkRole } from '@/lib/auth-helper'
 
 // GET /api/notifications - Get push subscriptions and notification logs
 export async function GET(request: NextRequest) {
@@ -34,10 +35,12 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/notifications - Send a push notification (mock)
-// TODO: Intégrer Firebase Cloud Messaging
+// POST /api/notifications - Send a push notification
+// Requires: SUPERADMIN or STATION_MANAGER
 export async function POST(request: NextRequest) {
   try {
+    const authErr = checkRole(request, ['SUPERADMIN', 'STATION_MANAGER'])
+    if (authErr) return authErr
     const body = await request.json()
     const { stationId, title, body: message, type, targetAll } = body
 

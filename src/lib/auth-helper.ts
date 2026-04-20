@@ -107,6 +107,40 @@ export class AuthError extends Error {
 }
 
 /**
+ * Check authentication — returns NextResponse(401/403) if auth fails, null if OK.
+ * Use at the top of protected API route handlers:
+ *   const authErr = checkAuth(request)
+ *   if (authErr) return authErr
+ */
+export function checkAuth(request: NextRequest): NextResponse | null {
+  const auth = verifyAuth(request)
+  if (!auth.authenticated) {
+    return NextResponse.json(
+      { success: false, error: auth.error || 'Unauthorized' },
+      { status: 401 }
+    )
+  }
+  return null
+}
+
+/**
+ * Check authentication + role — returns NextResponse(401/403) if auth/role fails, null if OK.
+ * Use at the top of role-protected API route handlers:
+ *   const authErr = checkRole(request, ['SUPERADMIN', 'STATION_MANAGER'])
+ *   if (authErr) return authErr
+ */
+export function checkRole(request: NextRequest, allowedRoles: string[]): NextResponse | null {
+  const auth = verifyRole(request, allowedRoles)
+  if (!auth.authenticated) {
+    return NextResponse.json(
+      { success: false, error: auth.error || 'Unauthorized' },
+      { status: 401 }
+    )
+  }
+  return null
+}
+
+/**
  * Wrap an API handler with authentication check.
  * Usage: `export const GET = withAuth(handler, ['SUPERADMIN', 'STATION_MANAGER'])`
  */
