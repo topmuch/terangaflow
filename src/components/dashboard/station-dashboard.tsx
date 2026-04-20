@@ -46,6 +46,7 @@ import { PushSection } from '@/components/dashboard/PushSection'
 import BillingSection from '@/components/dashboard/BillingSection'
 import { WhiteLabelSection } from '@/components/dashboard/WhiteLabelSection'
 import { DisplayScreenPanel } from '@/components/dashboard/DisplayScreenPanel'
+import { PendingMerchantsPanel } from '@/components/dashboard/PendingMerchantsPanel'
 
 // ============================================================
 // Types
@@ -223,6 +224,9 @@ export function StationDashboard({ stationId, stationName, stationCode, initialT
             {activeTab === 'overview' && (
               <motion.div key="overview" variants={tabVariants} initial="initial" animate="animate" exit="exit">
                 <OverviewTab stationId={stationId} />
+                <div className="mt-6">
+                  <PendingMerchantsPanel stationId={stationId} />
+                </div>
                 <div className="mt-6">
                   <DisplayScreenPanel stationId={stationId} stationName={stationName} stationCode={stationCode} />
                 </div>

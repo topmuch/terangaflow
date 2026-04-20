@@ -235,6 +235,9 @@ function Navbar({
 
         {/* Desktop CTA + Admin */}
         <div className="hidden md:flex items-center gap-3">
+          <a href="/register" className="px-4 py-2 rounded-lg text-sm font-medium text-amber-300 hover:text-amber-200 hover:bg-amber-500/5 transition-all">
+            Devenir Partenaire
+          </a>
           <Button
             variant="outline"
             size="sm"
@@ -292,6 +295,9 @@ function Navbar({
                   {link.label}
                 </a>
               ))}
+              <a href="/register" className="px-4 py-3 rounded-lg text-sm font-medium text-amber-300 hover:text-amber-200 hover:bg-amber-500/5 transition-all">
+                Devenir Partenaire
+              </a>
             </div>
             <div className="p-4 border-t border-white/10 space-y-2">
               <Button
@@ -1078,6 +1084,12 @@ function CtaFinalSection() {
                   <ChevronRight className="w-4 h-4 ml-1" />
                 </Button>
               </div>
+              <div className="mt-4 flex justify-center">
+                <a href="/register" className="inline-flex items-center gap-2 text-sm font-semibold text-amber-300 hover:text-amber-200 transition-colors">
+                  <Store className="w-4 h-4" />
+                  Devenir Partenaire
+                </a>
+              </div>
 
               {/* Merchant CTA */}
               <div className="mt-6 pt-6 border-t border-white/10">
@@ -1290,6 +1302,13 @@ function LoginDialog({
             )}
             Se connecter
           </Button>
+          <div className="relative mt-4">
+            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/10" /></div>
+            <div className="relative flex justify-center text-xs"><span className="px-2 bg-[#0B0F19] text-slate-500">Vous êtes commerçant ?</span></div>
+          </div>
+          <a href="/register" className="block w-full mt-3 text-center text-sm text-amber-400 hover:text-amber-300 font-medium py-2 rounded-lg border border-amber-500/20 hover:bg-amber-500/5 transition-all">
+            Devenir Partenaire →
+          </a>
         </div>
       </DialogContent>
     </Dialog>
