@@ -1327,8 +1327,11 @@ function DashboardView({
   const sidebarToStationTab: Record<string, string> = {
     overview: 'overview',
     lines: 'lines',
-    trips: 'schedules',
+    platforms: 'platforms',
     schedules: 'schedules',
+    ticker: 'ticker',
+    partners: 'partners',
+    analytics: 'analytics',
     settings: 'overview',
     push: 'push',
     billing: 'billing',
@@ -1359,8 +1362,11 @@ function DashboardView({
             <h1 className="text-lg font-bold text-white truncate">
               {sidebarTab === 'overview' && "Vue d'ensemble"}
               {sidebarTab === 'lines' && 'Gestion des Lignes'}
-              {sidebarTab === 'trips' && 'Départs / Arrivées'}
+              {sidebarTab === 'platforms' && 'Gestion des Quais'}
               {sidebarTab === 'schedules' && 'Horaires'}
+              {sidebarTab === 'ticker' && 'Messages & Annonces'}
+              {sidebarTab === 'partners' && 'Partenaires & Marchands'}
+              {sidebarTab === 'analytics' && 'Analytics'}
               {sidebarTab === 'settings' && 'Paramètres'}
               {sidebarTab === 'monetization' && 'Monétisation'}
               {sidebarTab === 'api-docs' && 'Documentation API'}
@@ -1393,40 +1399,16 @@ function DashboardView({
           )}
         </header>
         <div className="p-4 md:p-6">
-          {sidebarTab === 'overview' && showStationManage && effectiveStationId && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard title="Lignes Actives" value={stations.find(s => s.id === effectiveStationId)?._count.lines ?? 0} icon={Route} color="cyan" subtitle="En service" />
-                <StatCard title="Départs Aujourd'hui" value={12} icon={Bus} color="cyan" subtitle="Sur 145 prévus" />
-                <StatCard title="Retards en cours" value={3} icon={AlertTriangle} color="red" subtitle="Moy: 8 min" />
-                <StatCard title="Délai Moyen" value="8 min" icon={TrendingUp} color="amber" subtitle="Amélioration -2min" />
-              </div>
-              {isTransporter ? (
-                <TransporterDashboard
-                  transporterId={user.tenant?.id || user.id}
-                  transporterName={user.tenant?.name || user.name}
-                  stations={stations.map((s) => ({ id: s.id, name: s.name, code: s.code }))}
-                />
-              ) : effectiveStationId ? (
-                <StationDashboard
-                  stationId={effectiveStationId}
-                  stationName={stations.find((s) => s.id === effectiveStationId)?.name ?? ''}
-                  stationCode={stations.find((s) => s.id === effectiveStationId)?.code ?? ''}
-                  initialTab={stationInitialTab}
-                />
-              ) : (
-                <div className="flex items-center justify-center h-48 text-slate-500">Sélectionnez une gare</div>
-              )}
-            </div>
-          )}
-          {(sidebarTab === 'lines' || sidebarTab === 'trips' || sidebarTab === 'schedules' || sidebarTab === 'settings' || sidebarTab === 'push' || sidebarTab === 'billing' || sidebarTab === 'whitelabel') && effectiveStationId && (
-            <StationDashboard
-              stationId={effectiveStationId}
-              stationName={stations.find((s) => s.id === effectiveStationId)?.name ?? ''}
-              stationCode={stations.find((s) => s.id === effectiveStationId)?.code ?? ''}
-              initialTab={stationInitialTab}
+          {/* Transporter: always show its own dashboard */}
+          {isTransporter && showStationManage && (
+            <TransporterDashboard
+              transporterId={user.tenant?.id || user.id}
+              transporterName={user.tenant?.name || user.name}
+              stations={stations.map((s) => ({ id: s.id, name: s.name, code: s.code }))}
             />
           )}
+
+          {/* SuperAdmin special views */}
           {isSuperAdmin && showMonetization && effectiveStationId && (
             <MonetizationDashboard
               tenantId={user.tenant?.id || user.id}
@@ -1444,11 +1426,16 @@ function DashboardView({
           {isSuperAdmin && showPrivacy && (
             <DataPrivacyPanel userId={user.id} />
           )}
-          {isTransporter && showStationManage && (
-            <TransporterDashboard
-              transporterId={user.tenant?.id || user.id}
-              transporterName={user.tenant?.name || user.name}
-              stations={stations.map((s) => ({ id: s.id, name: s.name, code: s.code }))}
+
+          {/* Station Manager / SuperAdmin: unified StationDashboard rendering
+              Key forces full remount on sidebarTab or station change so initialTab is always applied */}
+          {!isTransporter && showStationManage && isStationManager && effectiveStationId && (
+            <StationDashboard
+              key={`${effectiveStationId}-${sidebarTab}`}
+              stationId={effectiveStationId}
+              stationName={stations.find((s) => s.id === effectiveStationId)?.name ?? ''}
+              stationCode={stations.find((s) => s.id === effectiveStationId)?.code ?? ''}
+              initialTab={stationInitialTab}
             />
           )}
         </div>

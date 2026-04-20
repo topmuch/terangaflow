@@ -142,14 +142,8 @@ const tabVariants = {
 // ============================================================
 
 export function StationDashboard({ stationId, stationName, stationCode, initialTab }: StationDashboardProps) {
+  // Note: Parent must pass a changing `key` prop to force remount when tab changes externally (sidebar)
   const [activeTab, setActiveTab] = useState(initialTab || 'overview')
-
-  // Sync with external tab changes
-  const [prevInitialTab, setPrevInitialTab] = useState(initialTab || 'overview')
-  if (initialTab && initialTab !== prevInitialTab) {
-    setPrevInitialTab(initialTab)
-    setActiveTab(initialTab)
-  }
 
   return (
     <div className="w-full min-h-0 flex flex-col">
