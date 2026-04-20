@@ -1045,7 +1045,7 @@ function TestimonialsSection() {
    8. CTA FINAL
    ============================================================ */
 
-function CtaFinalSection() {
+function CtaFinalSection({ onMerchantRegister }: { onMerchantRegister: () => void }) {
   return (
     <section id="cta-final" className="relative py-20 sm:py-28">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -1095,7 +1095,7 @@ function CtaFinalSection() {
               <div className="mt-6 pt-6 border-t border-white/10">
                 <p className="text-sm text-white/50 mb-3">Vous êtes commerçant ?</p>
                 <Button
-                  onClick={() => setViewMode('merchant-register')}
+                  onClick={onMerchantRegister}
                   variant="outline"
                   className="border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300 font-semibold"
                 >
@@ -1561,7 +1561,7 @@ export default function TerangaFlowPage() {
               <HowItWorksSection />
               <PricingSection />
               <TestimonialsSection />
-              <CtaFinalSection />
+              <CtaFinalSection onMerchantRegister={() => setViewMode('merchant-register')} />
             </main>
             <Footer />
           </motion.div>
