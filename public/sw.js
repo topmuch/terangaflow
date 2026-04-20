@@ -185,7 +185,7 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,
-      icon: '/manifest.json',
+      icon: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192"><rect width="192" height="192" rx="32" fill="#10b981"/><text x="96" y="130" text-anchor="middle" font-size="120" font-family="sans-serif">🚌</text></svg>'),
       data: { url: data.url || '/' },
       tag: data.tag || 'default',
       renotify: true,

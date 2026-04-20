@@ -7,7 +7,7 @@ export async function GET(req: Request) {
     const stationId = searchParams.get('stationId');
 
     if (!stationId) {
-      return NextResponse.json({ error: 'Missing stationId' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'stationId is required' }, { status: 400 });
     }
 
     // Stats for the last 24 hours
@@ -51,6 +51,6 @@ export async function GET(req: Request) {
     });
   } catch (error) {
     console.error('Screen stats error:', error);
-    return NextResponse.json({ error: 'Internal Error' }, { status: 500 });
+    return NextResponse.json({ success: false, error: 'Internal Error' }, { status: 500 });
   }
 }

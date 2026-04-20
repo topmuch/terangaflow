@@ -19,13 +19,19 @@ export async function GET(request: NextRequest) {
         stationId,
         isActive: true,
         deletedAt: null,
-        OR: [
-          { startDate: null },
-          { startDate: { lte: new Date() } },
-        ],
-        OR: [
-          { endDate: null },
-          { endDate: { gte: new Date() } },
+        AND: [
+          {
+            OR: [
+              { startDate: null },
+              { startDate: { lte: new Date() } },
+            ],
+          },
+          {
+            OR: [
+              { endDate: null },
+              { endDate: { gte: new Date() } },
+            ],
+          },
         ],
       },
       orderBy: { priority: 'desc' },

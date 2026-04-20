@@ -130,8 +130,8 @@ export function CsvUploader({ stationId }: CsvUploaderProps) {
 
       setState('success')
       setResultMessage({
-        imported: data.imported ?? data.count ?? 0,
-        failed: data.failed ?? 0,
+        imported: data.data?.created ?? 0,
+        failed: data.data?.errors ?? 0,
       })
     } catch {
       setState('error')

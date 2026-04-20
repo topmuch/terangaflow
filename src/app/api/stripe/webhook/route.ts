@@ -15,9 +15,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const stripe = new Stripe(stripeSecretKey, {
-      apiVersion: '2025-06-30.basil',
-    });
+    const stripe = new Stripe(stripeSecretKey);
 
     const body = await req.text();
     const signature = req.headers.get('stripe-signature') as string;
@@ -50,24 +48,28 @@ export async function POST(req: NextRequest) {
 
         if (!stationId || !planType) break;
 
-        const subscription = session.subscription as string;
+        const subscriptionId = session.subscription as string;
         const customer = session.customer as string;
-        const periodEnd = new Date();
-        periodEnd.setMonth(periodEnd.getMonth() + 1);
+
+        // Fetch the subscription to get the real current_period_end
+        const stripeSubscription = await stripe.subscriptions.retrieve(
+          subscriptionId
+        );
+        const periodEnd = new Date(stripeSubscription.current_period_end * 1000);
 
         await db.billingSubscription.upsert({
           where: { stationId },
           create: {
             stationId,
             stripeCustomerId: customer,
-            stripeSubscriptionId: subscription,
+            stripeSubscriptionId: subscriptionId,
             status: 'active',
             planType,
             currentPeriodEnd: periodEnd,
           },
           update: {
             stripeCustomerId: customer,
-            stripeSubscriptionId: subscription,
+            stripeSubscriptionId: subscriptionId,
             status: 'active',
             planType,
             currentPeriodEnd: periodEnd,
@@ -82,13 +84,31 @@ export async function POST(req: NextRequest) {
 
       case 'invoice.payment_succeeded': {
         const invoice = event.data.object as Stripe.Invoice;
-        const stationId = invoice.metadata?.stationId;
+        // Stripe invoices don't inherit checkout session metadata;
+        // look up the subscription to find the stationId.
+        const subId = invoice.lines.data[0]?.subscription as string | undefined;
 
-        if (!stationId) break;
+        if (!subId) {
+          console.warn(
+            '[Stripe Webhook] Invoice has no subscription line, skipping'
+          );
+          break;
+        }
+
+        const billingRecord = await db.billingSubscription.findFirst({
+          where: { stripeSubscriptionId: subId },
+        });
+
+        if (!billingRecord) {
+          console.warn(
+            `[Stripe Webhook] No billing subscription found for stripeSubscriptionId=${subId}`
+          );
+          break;
+        }
 
         await db.invoiceLog.create({
           data: {
-            stationId,
+            stationId: billingRecord.stationId,
             stripeInvoiceId: invoice.id,
             amountEUR: invoice.amount_paid / 100,
             status: 'paid',
@@ -96,7 +116,7 @@ export async function POST(req: NextRequest) {
         });
 
         console.log(
-          `[Stripe Webhook] Invoice paid: station=${stationId}, amount=${invoice.amount_paid / 100} EUR`
+          `[Stripe Webhook] Invoice paid: station=${billingRecord.stationId}, amount=${invoice.amount_paid / 100} EUR`
         );
         break;
       }
@@ -147,7 +167,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ received: true });
   } catch (error) {
     console.error('[Stripe Webhook] Processing error:', error);
-    // Always return 200 to prevent Stripe retries on developer errors
-    return NextResponse.json({ received: true });
+    // Return 500 so Stripe retries delivery for processing failures.
+    // Unhandled event types (default case) do NOT throw, so they return 200 above.
+    return NextResponse.json({ error: 'Processing error' }, { status: 500 });
   }
 }

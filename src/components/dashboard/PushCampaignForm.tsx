@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
@@ -60,14 +60,16 @@ export function PushCampaignForm({ stationId }: PushCampaignFormProps) {
   // ── Fetch available lines for the station ────────────────
   // We use a simple fetch so this component stays self-contained
   const [lines, setLines] = useState<LineOption[]>([])
-  const [linesLoaded, setLinesLoaded] = useState(false)
 
-  // Load lines on mount
-  if (!linesLoaded && stationId) {
-    setLinesLoaded(true)
+  // Load lines on mount via useEffect to avoid render-time side effects
+  const mountedRef = useRef(true)
+  useEffect(() => {
+    if (!stationId) return
+    mountedRef.current = true
     fetch(`/api/lines?stationId=${stationId}`)
       .then((res) => res.json())
       .then((json) => {
+        if (!mountedRef.current) return
         if (json.success && Array.isArray(json.data)) {
           setLines(json.data.map((l: { id: string; code: string; name: string }) => ({
             id: l.id,
@@ -79,7 +81,10 @@ export function PushCampaignForm({ stationId }: PushCampaignFormProps) {
       .catch(() => {
         // Silently fail — lines selector is optional
       })
-  }
+    return () => {
+      mountedRef.current = false
+    }
+  }, [stationId])
 
   // ── Send mutation ───────────────────────────────────────
   const sendMutation = useMutation<SendResult, Error, void>({
