@@ -33,6 +33,7 @@ import {
   Loader2,
   Route,
   AlertTriangle,
+  Store,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -81,6 +82,14 @@ const ThemeCustomizer = dynamic(
 );
 const DataPrivacyPanel = dynamic(
   () => import('@/components/rgpd/data-privacy-panel').then(m => ({ default: m.DataPrivacyPanel })),
+  { ssr: false }
+);
+const MerchantRegisterForm = dynamic(
+  () => import('@/components/dashboard/MerchantRegisterForm').then(m => ({ default: m.MerchantRegisterForm })),
+  { ssr: false }
+);
+const MerchantDashboardComponent = dynamic(
+  () => import('@/components/dashboard/merchant-dashboard').then(m => ({ default: m.MerchantDashboard })),
   { ssr: false }
 );
 
@@ -1054,7 +1063,7 @@ function CtaFinalSection() {
               <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white mb-4">
                 Prêt à moderniser votre gare ?
               </h2>
-              <p className="text-base sm:text-lg text-white/70 max-w-2xl mx-auto mb-8">
+              <p className="text-base sm:text-lg text-white/70 max-w-2xl mx-auto mb-6">
                 Rejoignez les 150+ gares qui font confiance à TerangaFlow. Essai gratuit de 14 jours, sans engagement.
               </p>
 
@@ -1067,6 +1076,19 @@ function CtaFinalSection() {
                 <Button className="bg-white text-slate-900 font-bold h-12 px-6 rounded-xl hover:bg-white/90 transition-colors shadow-lg shrink-0">
                   Commencer
                   <ChevronRight className="w-4 h-4 ml-1" />
+                </Button>
+              </div>
+
+              {/* Merchant CTA */}
+              <div className="mt-6 pt-6 border-t border-white/10">
+                <p className="text-sm text-white/50 mb-3">Vous êtes commerçant ?</p>
+                <Button
+                  onClick={() => setViewMode('merchant-register')}
+                  variant="outline"
+                  className="border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300 font-semibold"
+                >
+                  <Store className="w-4 h-4 mr-2" />
+                  Inscrivez votre commerce à la gare
                 </Button>
               </div>
 
@@ -1172,7 +1194,7 @@ function Footer() {
 //   TYPES
 // ============================================================
 
-type ViewMode = 'landing' | 'dashboard';
+type ViewMode = 'landing' | 'dashboard' | 'merchant-register' | 'merchant-dashboard';
 
 interface Station {
   id: string
@@ -1466,6 +1488,7 @@ function StatCard({ title, value, icon: Icon, color, subtitle }: { title: string
 export default function TerangaFlowPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('landing');
   const [loginOpen, setLoginOpen] = useState(false);
+  const [merchantDashboardData, setMerchantDashboardData] = useState<{ merchantId: string; stationId: string; stationName: string; merchantName: string } | null>(null);
 
   const { user, isAuthenticated, logout } = useAuthStore();
 
@@ -1552,6 +1575,54 @@ export default function TerangaFlowPage() {
               stations={stations}
               onBack={handleBackToLanding}
               onLogout={handleLogout}
+            />
+          </motion.div>
+        )}
+
+        {viewMode === 'merchant-register' && (
+          <motion.div
+            key="merchant-register"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.3 }}
+            className="min-h-screen bg-[#0B0F19]"
+          >
+            <MerchantRegisterForm
+              standalone
+              onComplete={(merchantId) => {
+                toast.success('Bienvenue ! Votre compte marchand a été créé.');
+                if (stations.length > 0) {
+                  setMerchantDashboardData({
+                    merchantId,
+                    stationId: stations[0].id,
+                    stationName: stations[0].name,
+                    merchantName: '',
+                  });
+                  setViewMode('merchant-dashboard');
+                } else {
+                  setViewMode('landing');
+                }
+              }}
+              onBack={handleBackToLanding}
+            />
+          </motion.div>
+        )}
+
+        {viewMode === 'merchant-dashboard' && merchantDashboardData && (
+          <motion.div
+            key="merchant-dashboard"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.3 }}
+            className="min-h-screen"
+          >
+            <MerchantDashboardComponent
+              merchantId={merchantDashboardData.merchantId}
+              merchantName={merchantDashboardData.merchantName}
+              stationId={merchantDashboardData.stationId}
+              stationName={merchantDashboardData.stationName}
             />
           </motion.div>
         )}
