@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { motion, useInView } from 'framer-motion';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { motion, useInView, AnimatePresence } from 'framer-motion';
+import { useQuery } from '@tanstack/react-query';
+import dynamic from 'next/dynamic';
 import {
   Monitor,
-  Smartphone,
   Bell,
   BarChart3,
-  Tags,
   CreditCard,
   ArrowRight,
   Play,
@@ -17,7 +17,6 @@ import {
   Globe,
   Users,
   TrendingUp,
-  Mail,
   ChevronRight,
   Menu,
   X,
@@ -27,11 +26,18 @@ import {
   DollarSign,
   QrCode,
   Bus,
-  Clock,
   MapPin,
+ LogIn,
+  LogOut,
+  Shield,
+  Loader2,
+  Route,
+  AlertTriangle,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import {
   Sheet,
@@ -39,6 +45,44 @@ import {
   SheetTrigger,
   SheetClose,
 } from '@/components/ui/sheet';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { useAuthStore, getRoleLabel, getRoleColor } from '@/lib/auth-store';
+
+// ── Lazy-load heavy dashboard components ──
+const StationDashboard = dynamic(
+  () => import('@/components/dashboard/station-dashboard').then(m => ({ default: m.StationDashboard })),
+  { ssr: false }
+);
+const TransporterDashboard = dynamic(
+  () => import('@/components/dashboard/transporter-dashboard').then(m => ({ default: m.TransporterDashboard })),
+  { ssr: false }
+);
+const MonetizationDashboard = dynamic(
+  () => import('@/components/dashboard/monetization-dashboard').then(m => ({ default: m.MonetizationDashboard })),
+  { ssr: false }
+);
+const DashboardSidebar = dynamic(
+  () => import('@/components/dashboard/Sidebar').then(m => ({ default: m.Sidebar })),
+  { ssr: false }
+);
+const ApiDocumentation = dynamic(
+  () => import('@/components/api-docs/api-documentation'),
+  { ssr: false }
+);
+const ThemeCustomizer = dynamic(
+  () => import('@/components/whitelist/theme-customizer'),
+  { ssr: false }
+);
+const DataPrivacyPanel = dynamic(
+  () => import('@/components/rgpd/data-privacy-panel').then(m => ({ default: m.DataPrivacyPanel })),
+  { ssr: false }
+);
 
 /* ============================================================
    ANIMATION HELPERS
@@ -131,7 +175,17 @@ const navLinks = [
   { label: 'Contact', href: '#cta-final' },
 ];
 
-function Navbar() {
+function Navbar({
+  isAuthenticated,
+  onLoginClick,
+  onDashboardClick,
+  onLogout,
+}: {
+  isAuthenticated: boolean;
+  onLoginClick: () => void;
+  onDashboardClick: () => void;
+  onLogout: () => void;
+}) {
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -148,14 +202,14 @@ function Navbar() {
     >
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between">
         {/* Logo */}
-        <a href="#" className="flex items-center gap-2.5 group">
+        <button onClick={onDashboardClick} className="flex items-center gap-2.5 group">
           <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl gradient-bg-animated flex items-center justify-center shadow-lg shadow-cyan-500/20 group-hover:shadow-cyan-500/40 transition-shadow">
             <Bus className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
           </div>
           <span className="text-xl sm:text-2xl font-extrabold tracking-tight gradient-text-primary">
             TerangaFlow
           </span>
-        </a>
+        </button>
 
         {/* Desktop Links */}
         <div className="hidden md:flex items-center gap-1">
@@ -170,57 +224,86 @@ function Navbar() {
           ))}
         </div>
 
-        {/* Desktop CTA */}
+        {/* Desktop CTA + Admin */}
         <div className="hidden md:flex items-center gap-3">
-          <a href="#cta-final">
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-xs gap-1.5 border-white/15 text-slate-300 hover:text-white hover:bg-white/5 hover:border-white/25 transition-all"
+            onClick={onDashboardClick}
+          >
+            <LayoutDashboard className="w-3.5 h-3.5" />
+            Dashboard
+          </Button>
+          {isAuthenticated ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs gap-1.5 text-slate-400 hover:text-white"
+              onClick={onLogout}
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              Déconnexion
+            </Button>
+          ) : (
             <Button
               className="gradient-bg-animated text-white font-semibold shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 transition-all border-0 hover:scale-[1.02]"
+              onClick={onLoginClick}
             >
-              Essai Gratuit
-              <ArrowRight className="w-4 h-4 ml-2" />
+              <Shield className="w-4 h-4 mr-1.5" />
+              Admin
             </Button>
-          </a>
+          )}
         </div>
 
         {/* Mobile Menu */}
         <Sheet>
           <SheetTrigger asChild className="md:hidden">
-            <Button variant="ghost" size="icon" className="text-slate-300 hover:text-white hover:bg-white/10">
-              <Menu className="w-5 h-5" />
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="right" className="w-72 bg-[#0B0F19] border-white/10 p-0">
-            <div className="flex flex-col h-full">
-              <div className="flex items-center justify-between p-4 border-b border-white/10">
-                <span className="text-lg font-extrabold gradient-text-primary">TerangaFlow</span>
-                <SheetClose asChild>
-                  <Button variant="ghost" size="icon" className="text-slate-300 hover:text-white hover:bg-white/10">
-                    <X className="w-5 h-5" />
-                  </Button>
-                </SheetClose>
-              </div>
-              <div className="flex-1 flex flex-col p-4 gap-1">
-                {navLinks.map((link) => (
-                  <a
-                    key={link.href}
-                    href={link.href}
-                    className="px-4 py-3 rounded-lg text-sm font-medium text-slate-300 hover:text-white hover:bg-white/5 transition-all"
-                  >
-                    {link.label}
-                  </a>
-                ))}
-              </div>
-              <div className="p-4 border-t border-white/10">
-                <a href="#cta-final" className="block">
-                  <Button className="w-full gradient-bg-animated text-white font-semibold border-0">
-                    Essai Gratuit
-                    <ArrowRight className="w-4 h-4 ml-2" />
-                  </Button>
-                </a>
-              </div>
+          <Button variant="ghost" size="icon" className="text-slate-300 hover:text-white hover:bg-white/10">
+            <Menu className="w-5 h-5" />
+          </Button>
+        </SheetTrigger>
+        <SheetContent side="right" className="w-72 bg-[#0B0F19] border-white/10 p-0">
+          <div className="flex flex-col h-full">
+            <div className="flex items-center justify-between p-4 border-b border-white/10">
+              <span className="text-lg font-extrabold gradient-text-primary">TerangaFlow</span>
+              <SheetClose asChild>
+                <Button variant="ghost" size="icon" className="text-slate-300 hover:text-white hover:bg-white/10">
+                  <X className="w-5 h-5" />
+                </Button>
+              </SheetClose>
             </div>
-          </SheetContent>
-        </Sheet>
+            <div className="flex-1 flex flex-col p-4 gap-1">
+              {navLinks.map((link) => (
+                <a
+                  key={link.href}
+                  href={link.href}
+                  className="px-4 py-3 rounded-lg text-sm font-medium text-slate-300 hover:text-white hover:bg-white/5 transition-all"
+                >
+                  {link.label}
+                </a>
+              ))}
+            </div>
+            <div className="p-4 border-t border-white/10 space-y-2">
+              <Button
+                variant="outline"
+                className="w-full border-white/15 text-slate-300 hover:text-white hover:bg-white/5"
+                onClick={() => { onDashboardClick(); }}
+              >
+                <LayoutDashboard className="w-4 h-4 mr-2" />
+                Dashboard
+              </Button>
+              <Button
+                className="w-full gradient-bg-animated text-white font-semibold border-0"
+                onClick={onLoginClick}
+              >
+                <Shield className="w-4 h-4 mr-2" />
+                Admin
+              </Button>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
       </nav>
     </header>
   );
@@ -230,7 +313,7 @@ function Navbar() {
    2. HERO SECTION
    ============================================================ */
 
-function HeroSection() {
+function HeroSection({ onTryDemo }: { onTryDemo: () => void }) {
   return (
     <section className="relative min-h-screen flex items-center pt-20 overflow-hidden">
       <FloatingShapes />
@@ -268,25 +351,23 @@ function HeroSection() {
 
             <FadeUp delay={0.3}>
               <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-                <a href="#cta-final">
-                  <Button
-                    size="lg"
-                    className="gradient-bg-animated text-white font-bold text-base px-8 py-6 shadow-xl shadow-cyan-500/25 hover:shadow-cyan-500/40 transition-all border-0 hover:scale-[1.02] animate-pulse-glow"
-                  >
-                    Démarrer l&apos;essai gratuit
-                    <ArrowRight className="w-5 h-5 ml-2" />
-                  </Button>
-                </a>
-                <a href="#how-it-works">
-                  <Button
-                    size="lg"
-                    variant="outline"
-                    className="text-base px-8 py-6 font-semibold border-white/15 text-slate-300 hover:text-white hover:bg-white/5 hover:border-white/25 transition-all bg-white/[0.02] backdrop-blur-sm"
-                  >
-                    <Play className="w-4 h-4 mr-2" />
-                    Voir la démo live
-                  </Button>
-                </a>
+                <Button
+                  size="lg"
+                  onClick={onTryDemo}
+                  className="gradient-bg-animated text-white font-bold text-base px-8 py-6 shadow-xl shadow-cyan-500/25 hover:shadow-cyan-500/40 transition-all border-0 hover:scale-[1.02] animate-pulse-glow"
+                >
+                  Démarrer l&apos;essai gratuit
+                  <ArrowRight className="w-5 h-5 ml-2" />
+                </Button>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  onClick={onTryDemo}
+                  className="text-base px-8 py-6 font-semibold border-white/15 text-slate-300 hover:text-white hover:bg-white/5 hover:border-white/25 transition-all bg-white/[0.02] backdrop-blur-sm"
+                >
+                  <Play className="w-4 h-4 mr-2" />
+                  Voir la démo live
+                </Button>
               </div>
             </FadeUp>
 
@@ -1087,20 +1168,381 @@ function Footer() {
    MAIN PAGE
    ============================================================ */
 
+// ============================================================
+//   TYPES
+// ============================================================
+
+type ViewMode = 'landing' | 'dashboard';
+
+interface Station {
+  id: string
+  name: string
+  code: string
+  city: string
+  country: string
+  timezone: string
+  _count: { lines: number; platforms: number }
+}
+
+// ============================================================
+//   LOGIN DIALOG
+// ============================================================
+
+function LoginDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const [email, setEmail] = useState('');
+  const { login, isLoading } = useAuthStore();
+
+  const handleLogin = async () => {
+    const success = await login(email);
+    if (success) {
+      setEmail('');
+      onOpenChange(false);
+      toast.success('Bienvenue !');
+    } else {
+      toast.error('Email non reconnu. Essayez un des comptes démo.');
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md glass border-white/10">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-white">
+            <Shield className="w-5 h-5 text-cyan-400" />
+            Connexion Admin
+          </DialogTitle>
+          <DialogDescription className="text-slate-400">
+            Connectez-vous pour accéder au tableau de bord de gestion.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 pt-2">
+          <div className="space-y-2">
+            <Label htmlFor="email" className="text-slate-300">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              placeholder="admin@smartticketqr.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+              className="bg-white/5 border-white/10 text-white placeholder:text-slate-500"
+            />
+          </div>
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+              Comptes démo
+            </p>
+            <div className="grid gap-1.5">
+              {[
+                { email: 'admin@smartticketqr.com', role: 'Super Admin', color: 'text-red-400' },
+                { email: 'manager@dakar-station.sn', role: 'Gestionnaire', color: 'text-cyan-400' },
+                { email: 'thermes@transport.sn', role: 'Transporteur', color: 'text-orange-400' },
+              ].map((demo) => (
+                <button
+                  key={demo.email}
+                  onClick={() => setEmail(demo.email)}
+                  className="flex items-center gap-2 w-full text-left px-3 py-2 rounded-lg text-sm
+                    bg-white/5 hover:bg-white/10 transition-colors border border-white/5"
+                >
+                  <span className={`font-mono text-xs font-bold ${demo.color}`}>{demo.role}</span>
+                  <span className="text-slate-500 truncate text-xs">{demo.email}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+          <Button
+            onClick={handleLogin}
+            disabled={!email || isLoading}
+            className="w-full gradient-bg-animated text-white font-semibold border-0"
+          >
+            {isLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+            ) : (
+              <LogIn className="w-4 h-4 mr-2" />
+            )}
+            Se connecter
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ============================================================
+//   DASHBOARD VIEW
+// ============================================================
+
+function DashboardView({
+  user,
+  stations,
+  onBack,
+  onLogout,
+}: {
+  user: { id: string; role: string; name: string; tenant: { id: string; name: string; type: string; slug: string } | null } | null;
+  stations: Station[];
+  onBack: () => void;
+  onLogout: () => void;
+}) {
+  const [selectedStationId, setSelectedStationId] = useState<string | null>(null);
+  const [sidebarTab, setSidebarTab] = useState('overview');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  const isSuperAdmin = user?.role === 'SUPERADMIN';
+  const isTransporter = user?.role === 'TRANSPORTER';
+  const isStationManager = user?.role === 'STATION_MANAGER' || user?.role === 'SUPERADMIN';
+
+  const effectiveStationId = selectedStationId ?? (isStationManager && stations.length > 0 ? stations[0].id : null);
+
+  if (!user) return null;
+
+  const showMonetization = sidebarTab === 'monetization';
+  const showApiDocs = sidebarTab === 'api-docs';
+  const showWhitelist = sidebarTab === 'whitelist';
+  const showPrivacy = sidebarTab === 'privacy';
+  const showStationManage = !showMonetization && !showApiDocs && !showWhitelist && !showPrivacy && !['push', 'billing', 'whitelabel'].includes(sidebarTab);
+
+  return (
+    <div className="h-screen flex bg-[#0B0F19] overflow-hidden">
+      <DashboardSidebar
+        user={user}
+        activeTab={sidebarTab}
+        onTabChange={setSidebarTab}
+        onLogout={onLogout}
+        onBack={onBack}
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+      />
+      <main className="flex-1 overflow-y-auto bg-[#0B0F19]">
+        <header className="sticky top-0 z-10 border-b border-white/5 bg-[#0B0F19]/80 backdrop-blur-sm px-4 md:px-6 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3 min-w-0">
+            <h1 className="text-lg font-bold text-white truncate">
+              {sidebarTab === 'overview' && "Vue d'ensemble"}
+              {sidebarTab === 'lines' && 'Gestion des Lignes'}
+              {sidebarTab === 'trips' && 'Départs / Arrivées'}
+              {sidebarTab === 'schedules' && 'Horaires'}
+              {sidebarTab === 'settings' && 'Paramètres'}
+              {sidebarTab === 'monetization' && 'Monétisation'}
+              {sidebarTab === 'api-docs' && 'Documentation API'}
+              {sidebarTab === 'whitelist' && 'White Label'}
+              {sidebarTab === 'privacy' && 'RGPD & Confidentialité'}
+              {sidebarTab === 'push' && 'Notifications Push'}
+              {sidebarTab === 'billing' && 'Abonnements & Facturation'}
+              {sidebarTab === 'whitelabel' && 'Marque Blanche'}
+            </h1>
+            <Badge variant="outline" className={`text-xs gap-1 shrink-0 border-white/10 ${getRoleColor(user.role as 'SUPERADMIN' | 'STATION_MANAGER' | 'TRANSPORTER' | 'MERCHANT' | 'TRAVELER')}`}>
+              {getRoleLabel(user.role as 'SUPERADMIN' | 'STATION_MANAGER' | 'TRANSPORTER' | 'MERCHANT' | 'TRAVELER')}
+            </Badge>
+          </div>
+          {isStationManager && (
+            <div className="hidden md:flex items-center gap-1 bg-white/5 rounded-lg p-1">
+              {stations.map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => setSelectedStationId(s.id)}
+                  className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                    effectiveStationId === s.id
+                      ? 'bg-cyan-600 text-white shadow-sm'
+                      : 'text-slate-400 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  {s.code}
+                </button>
+              ))}
+            </div>
+          )}
+        </header>
+        <div className="p-4 md:p-6">
+          {sidebarTab === 'overview' && showStationManage && effectiveStationId && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <StatCard title="Lignes Actives" value={stations.find(s => s.id === effectiveStationId)?._count.lines ?? 0} icon={Route} color="cyan" subtitle="En service" />
+                <StatCard title="Départs Aujourd'hui" value={12} icon={Bus} color="cyan" subtitle="Sur 145 prévus" />
+                <StatCard title="Retards en cours" value={3} icon={AlertTriangle} color="red" subtitle="Moy: 8 min" />
+                <StatCard title="Délai Moyen" value="8 min" icon={TrendingUp} color="amber" subtitle="Amélioration -2min" />
+              </div>
+              {isTransporter ? (
+                <TransporterDashboard
+                  transporterId={user.tenant?.id || user.id}
+                  transporterName={user.tenant?.name || user.name}
+                  stations={stations.map((s) => ({ id: s.id, name: s.name, code: s.code }))}
+                />
+              ) : effectiveStationId ? (
+                <StationDashboard
+                  stationId={effectiveStationId}
+                  stationName={stations.find((s) => s.id === effectiveStationId)?.name ?? ''}
+                  stationCode={stations.find((s) => s.id === effectiveStationId)?.code ?? ''}
+                />
+              ) : (
+                <div className="flex items-center justify-center h-48 text-slate-500">Sélectionnez une gare</div>
+              )}
+            </div>
+          )}
+          {(sidebarTab === 'lines' || sidebarTab === 'trips' || sidebarTab === 'schedules' || sidebarTab === 'settings' || sidebarTab === 'push' || sidebarTab === 'billing' || sidebarTab === 'whitelabel') && effectiveStationId && (
+            <StationDashboard
+              stationId={effectiveStationId}
+              stationName={stations.find((s) => s.id === effectiveStationId)?.name ?? ''}
+              stationCode={stations.find((s) => s.id === effectiveStationId)?.code ?? ''}
+            />
+          )}
+          {isSuperAdmin && showMonetization && effectiveStationId && (
+            <MonetizationDashboard
+              tenantId={user.tenant?.id || user.id}
+              stationId={effectiveStationId}
+              stationName={stations.find((s) => s.id === effectiveStationId)?.name ?? ''}
+              userId={user.id}
+            />
+          )}
+          {isSuperAdmin && showApiDocs && effectiveStationId && (
+            <ApiDocumentation stationId={effectiveStationId} />
+          )}
+          {isSuperAdmin && showWhitelist && effectiveStationId && (
+            <ThemeCustomizer tenantId={user.tenant?.id || user.id} stationName={stations.find((s) => s.id === effectiveStationId)?.name ?? ''} />
+          )}
+          {isSuperAdmin && showPrivacy && (
+            <DataPrivacyPanel userId={user.id} />
+          )}
+          {isTransporter && showStationManage && (
+            <TransporterDashboard
+              transporterId={user.tenant?.id || user.id}
+              transporterName={user.tenant?.name || user.name}
+              stations={stations.map((s) => ({ id: s.id, name: s.name, code: s.code }))}
+            />
+          )}
+        </div>
+      </main>
+    </div>
+  );
+}
+
+// ============================================================
+//   STAT CARD (for dashboard)
+// ============================================================
+
+function StatCard({ title, value, icon: Icon, color, subtitle }: { title: string; value: string | number; icon: React.ComponentType<{ className?: string }>; color: string; subtitle?: string }) {
+  const colorClasses: Record<string, string> = {
+    cyan: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
+    red: 'bg-red-500/10 text-red-400 border-red-500/20',
+    amber: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+    emerald: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+  };
+  const cls = colorClasses[color] || colorClasses.cyan;
+  return (
+    <div className={`rounded-xl border p-4 ${cls}`}>
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs font-medium text-slate-400">{title}</span>
+        <Icon className="w-4 h-4" />
+      </div>
+      <div className="text-2xl font-bold text-white">{value}</div>
+      {subtitle && <div className="text-xs text-slate-500 mt-1">{subtitle}</div>}
+    </div>
+  );
+}
+
+// ============================================================
+//   MAIN PAGE
+// ============================================================
+
 export default function TerangaFlowPage() {
+  const [viewMode, setViewMode] = useState<ViewMode>('landing');
+  const [loginOpen, setLoginOpen] = useState(false);
+
+  const { user, isAuthenticated, logout } = useAuthStore();
+
+  const { data: stationsData } = useQuery({
+    queryKey: ['stations'],
+    queryFn: async () => {
+      const res = await fetch('/api/stations');
+      if (!res.ok) throw new Error('Failed to fetch stations');
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error);
+      return json.data as Station[];
+    },
+    refetchInterval: 60000,
+  });
+  const stations: Station[] = stationsData || [];
+
+  const handleOpenDashboard = useCallback(() => {
+    if (!isAuthenticated) {
+      setLoginOpen(true);
+      return;
+    }
+    setViewMode('dashboard');
+  }, [isAuthenticated]);
+
+  const handleLogout = useCallback(() => {
+    logout();
+    setViewMode('landing');
+    toast.info('Déconnecté');
+  }, [logout]);
+
+  const handleBackToLanding = useCallback(() => {
+    setViewMode('landing');
+  }, []);
+
+  // Auto-redirect to dashboard if already logged in and tries to open dashboard
+  useEffect(() => {
+ if (isAuthenticated && viewMode === 'landing') {
+   // Stay on landing - user can navigate via buttons
+  }
+  }, [isAuthenticated, viewMode]);
+
   return (
     <div className="min-h-screen flex flex-col bg-[#0B0F19] text-[#F8FAFC] overflow-x-hidden">
-      <Navbar />
-      <main className="flex-1">
-        <HeroSection />
-        <SocialProof />
-        <FeaturesSection />
-        <HowItWorksSection />
-        <PricingSection />
-        <TestimonialsSection />
-        <CtaFinalSection />
-      </main>
-      <Footer />
+      <AnimatePresence mode="wait">
+        {viewMode === 'landing' && (
+          <motion.div
+            key="landing"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="min-h-screen flex flex-col"
+          >
+            <Navbar
+              isAuthenticated={isAuthenticated}
+              onLoginClick={() => setLoginOpen(true)}
+              onDashboardClick={handleOpenDashboard}
+              onLogout={handleLogout}
+            />
+            <main className="flex-1">
+              <HeroSection onTryDemo={handleOpenDashboard} />
+              <SocialProof />
+              <FeaturesSection />
+              <HowItWorksSection />
+              <PricingSection />
+              <TestimonialsSection />
+              <CtaFinalSection />
+            </main>
+            <Footer />
+          </motion.div>
+        )}
+
+        {viewMode === 'dashboard' && (
+          <motion.div
+            key="dashboard"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.3 }}
+            className="min-h-screen"
+          >
+            <DashboardView
+              user={user}
+              stations={stations}
+              onBack={handleBackToLanding}
+              onLogout={handleLogout}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <LoginDialog open={loginOpen} onOpenChange={setLoginOpen} />
     </div>
   );
 }
