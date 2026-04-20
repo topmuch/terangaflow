@@ -6,8 +6,9 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireRole } from '@/lib/auth-helper'
 
-// --- GET: Retrieve tenant's white label theme ---
+// --- GET: Retrieve tenant's white label theme (public) ---
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
@@ -55,9 +56,11 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// --- POST: Save tenant's white label theme ---
+// --- POST: Save tenant's white label theme (protected) ---
 export async function POST(request: NextRequest) {
   try {
+    requireRole(request, ['SUPERADMIN', 'STATION_MANAGER'])
+
     const body = await request.json()
     const { tenantId, theme } = body
 

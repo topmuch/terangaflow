@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
         subscriptionEnd: true,
         renewalReminderSentAt: true,
         isActive: true,
+        deletedAt: true,
       },
     })
 

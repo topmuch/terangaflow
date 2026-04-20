@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
         createdAt: { gte: startDate },
       },
       include: {
-        apiKey: { select: { name: true, key: true } },
+        apiKey: { select: { name: true } },
       },
       orderBy: { createdAt: 'desc' },
     })

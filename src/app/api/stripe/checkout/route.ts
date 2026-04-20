@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
+import { requireAuth } from '@/lib/auth-helper';
 
 export async function POST(req: NextRequest) {
   try {
+    requireAuth(req);
+
     const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 
     // Demo mode — Stripe not configured

@@ -1,9 +1,12 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth } from '@/lib/auth-helper'
 
 // POST /api/rgpd/export — Export all personal data for a user (RGPD Art. 20)
 export async function POST(request: NextRequest) {
   try {
+    const auth = requireAuth(request)
+
     const body = await request.json()
     const { userId } = body
 

@@ -59,6 +59,13 @@ function applyThemeToDocument(theme: WhiteLabelTheme): void {
   }
 
   if (theme.customCss) {
+    // Sanitize: strip any script tags or dangerous CSS expressions to prevent XSS
+    const sanitizedCss = theme.customCss
+      .replace(/<\/?script[^>]*>/gi, '')
+      .replace(/expression\s*\(/gi, '')
+      .replace(/javascript\s*:/gi, '')
+      .replace(/url\s*\(\s*["']?\s*javascript/gi, 'url("data:text/plain,')
+
     // Apply custom CSS via a dynamic style tag
     let styleTag = document.getElementById('wl-custom-css') as HTMLStyleElement | null
     if (!styleTag) {
@@ -66,7 +73,7 @@ function applyThemeToDocument(theme: WhiteLabelTheme): void {
       styleTag.id = 'wl-custom-css'
       document.head.appendChild(styleTag)
     }
-    styleTag.textContent = theme.customCss
+    styleTag.textContent = sanitizedCss
   } else {
     const existing = document.getElementById('wl-custom-css')
     if (existing) existing.remove()

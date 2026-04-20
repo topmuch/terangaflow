@@ -1,10 +1,13 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { createHash } from 'crypto'
+import { requireAuth } from '@/lib/auth-helper'
 
 // POST /api/rgpd/anonymize — Anonymize user personal data (RGPD Art. 17)
 export async function POST(request: NextRequest) {
   try {
+    const auth = requireAuth(request)
+
     const body = await request.json()
     const { userId } = body
 

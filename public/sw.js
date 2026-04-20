@@ -120,7 +120,11 @@ async function staleWhileRevalidate(request) {
       return response;
     })
     .catch(() => {
-      return null;
+      // Return a minimal offline fallback instead of null
+      return new Response(
+        JSON.stringify({ error: 'Hors connexion', offline: true }),
+        { status: 503, headers: { 'Content-Type': 'application/json' } }
+      );
     });
 
   // Return cached if available, otherwise wait for network
