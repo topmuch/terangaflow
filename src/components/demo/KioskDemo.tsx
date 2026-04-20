@@ -14,7 +14,9 @@ import {
   UtensilsCrossed,
   Coffee,
   Shield,
+  Bell,
 } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 /* ═══════════════════════════════════════════════════════════
    TYPES
@@ -464,108 +466,174 @@ function ScanlineOverlay() {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   MAIN KIOSK DEMO COMPONENT
+   MOBILE DEPARTURE CARD
    ═══════════════════════════════════════════════════════════ */
 
-export function KioskDemo() {
-  const [departures, setDepartures] = useState<Departure[]>(generateInitialDepartures);
-  const [paused, setPaused] = useState(false);
-  const [tickerMessages] = useState<TickerMessage[]>(INITIAL_TICKER);
-  const departureIdRef = useRef(0);
+function MobileDepartureCard({ departure, index }: { departure: Departure; index: number }) {
+  const isDeparted = departure.status === 'departed' || departure.status === 'cancelled';
 
-  // Simulation engine: modify departures every 4-7 seconds
-  useEffect(() => {
-    if (paused) return;
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: isDeparted ? 0.4 : 1, y: 0 }}
+      exit={{ opacity: 0, x: -60, scale: 0.95 }}
+      transition={{
+        duration: 0.4,
+        delay: index * 0.06,
+        layout: { duration: 0.3, ease: 'easeInOut' },
+      }}
+      whileTap={{ scale: 0.98 }}
+      className={`flex gap-3 p-4 border-b border-white/[0.04] transition-colors duration-200 active:bg-white/[0.03] ${
+        isDeparted ? 'opacity-40' : ''
+      }`}
+    >
+      {/* Colored line indicator (vertical bar) */}
+      <div
+        className={`w-1 shrink-0 rounded-full bg-gradient-to-b ${departure.lineGradient}`}
+      />
 
-    const interval = setInterval(() => {
-      setDepartures((prev) => {
-        const next = [...prev];
-        const action = Math.random();
+      {/* Card content */}
+      <div className="flex-1 min-w-0">
+        {/* Top row: Time + Status */}
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <time
+            className={`font-mono text-2xl font-extrabold tracking-wider tabular-nums ${
+              isDeparted
+                ? 'text-slate-600 line-through'
+                : departure.status === 'delayed'
+                  ? 'text-red-400'
+                  : departure.status === 'boarding'
+                    ? 'text-amber-300'
+                    : 'text-cyan-400'
+            }`}
+            style={!isDeparted && departure.status === 'on_time' ? { textShadow: '0 0 12px rgba(6,182,212,0.3)' } : undefined}
+          >
+            {departure.time}
+          </time>
+          <StatusBadge status={departure.status} />
+        </div>
 
-        // 20% chance: a "boarding" becomes "departed"
-        if (action < 0.2) {
-          const boardingIdx = next.findIndex(
-            (d) => d.status === 'boarding'
-          );
-          if (boardingIdx !== -1) {
-            next[boardingIdx] = { ...next[boardingIdx], status: 'departed' as DepartureStatus };
-          }
-        }
-        // 15% chance: an "on_time" becomes "boarding"
-        else if (action < 0.35) {
-          const onTimeIdx = next.findIndex(
-            (d) => d.status === 'on_time'
-          );
-          if (onTimeIdx !== -1) {
-            next[onTimeIdx] = { ...next[onTimeIdx], status: 'boarding' as DepartureStatus };
-          }
-        }
-        // 10% chance: an "on_time" becomes "delayed"
-        else if (action < 0.45) {
-          const onTimeIdx = next.findIndex(
-            (d) => d.status === 'on_time'
-          );
-          if (onTimeIdx !== -1) {
-            const delayMin = Math.floor(Math.random() * 15) + 5;
-            const now = new Date();
-            now.setMinutes(now.getMinutes() + delayMin);
-            const newTime = now.toLocaleTimeString('fr-FR', {
-              hour: '2-digit',
-              minute: '2-digit',
-              hour12: false,
-            });
-            next[onTimeIdx] = {
-              ...next[onTimeIdx],
-              status: 'delayed' as DepartureStatus,
-              time: newTime,
-              notes: `+${delayMin} min`,
-            };
-          }
-        }
-        // 15% chance: remove first "departed" and add new departure at bottom
-        else if (action < 0.6) {
-          const departedIdx = next.findIndex(
-            (d) => d.status === 'departed'
-          );
-          if (departedIdx !== -1) {
-            departureIdRef.current += 1;
-            const config = LINE_CONFIGS[Math.floor(Math.random() * LINE_CONFIGS.length)];
-            const dest = DESTINATIONS[Math.floor(Math.random() * DESTINATIONS.length)];
-            const offset = Math.floor(Math.random() * 25) + 15;
-            next.splice(departedIdx, 1);
-            next.push({
-              id: `dep-new-${departureIdRef.current}`,
-              line: config.line,
-              lineColor: config.lineColor,
-              lineGradient: config.lineGradient,
-              lineBg: config.lineBg,
-              destination: dest.name,
-              time: getTimePlusMinutes(offset),
-              platform: PLATFORMS[Math.floor(Math.random() * PLATFORMS.length)],
-              status: 'on_time' as DepartureStatus,
-              vehicle: dest.vehicle,
-            });
-          }
-        }
-        // 10% chance: change a platform number
-        else if (action < 0.7) {
-          const idx = Math.floor(Math.random() * next.length);
-          if (next[idx].status !== 'departed') {
-            next[idx] = {
-              ...next[idx],
-              platform: PLATFORMS[Math.floor(Math.random() * PLATFORMS.length)],
-            };
-          }
-        }
+        {/* Line badge */}
+        <div className="mb-1.5">
+          <span
+            className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-extrabold tracking-wider border ${departure.lineBg}`}
+          >
+            <span className={`w-1.5 h-1.5 rounded-full bg-gradient-to-br ${departure.lineGradient}`} />
+            <span className={departure.lineColor}>{departure.line}</span>
+          </span>
+        </div>
 
-        return next;
-      });
-    }, 4500);
+        {/* Destination + Platform */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            {departure.vehicle === 'bus' ? (
+              <Bus className={`w-4 h-4 shrink-0 ${isDeparted ? 'text-slate-700' : 'text-slate-400'}`} />
+            ) : (
+              <Train className={`w-4 h-4 shrink-0 ${isDeparted ? 'text-slate-700' : 'text-slate-400'}`} />
+            )}
+            <span
+              className={`text-sm font-bold truncate ${
+                isDeparted ? 'text-slate-600' : 'text-white'
+              }`}
+            >
+              {departure.destination}
+            </span>
+          </div>
+          <span className="shrink-0 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+            Quai {departure.platform}
+          </span>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
 
-    return () => clearInterval(interval);
-  }, [paused]);
+/* ═══════════════════════════════════════════════════════════
+   MOBILE TIMELINE VIEW
+   ═══════════════════════════════════════════════════════════ */
 
-  // Count stats
+function MobileTimeline({ departures, paused }: { departures: Departure[]; paused: boolean }) {
+  const topFive = departures.slice(0, 5);
+
+  return (
+    <div className="relative min-h-screen bg-[#080c14] flex flex-col" style={{ overscrollBehaviorY: 'contain' }}>
+      {/* ──── Compact Header ──── */}
+      <header className="shrink-0 px-4 pt-4 pb-3 bg-gradient-to-b from-cyan-950/30 to-transparent border-b border-white/[0.06]">
+        {/* Top row: Station name + LiveClock */}
+        <div className="flex items-center justify-between">
+          {/* Left: Station name with MapPin */}
+          <div className="flex items-center gap-2 min-w-0">
+            <MapPin className="w-4 h-4 text-cyan-400 shrink-0" />
+            <span className="text-base font-extrabold text-white tracking-wide truncate">
+              Gare Diamniadio
+            </span>
+          </div>
+
+          {/* Right: LiveClock (smaller variant) */}
+          <LiveClock paused={paused} />
+        </div>
+
+        {/* Live indicator + Auto-refresh note */}
+        <div className="flex items-center gap-2 mt-2">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/50 animate-pulse" />
+          <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">
+            EN DIRECT
+          </span>
+          <span className="text-slate-600">•</span>
+          <span className="text-[10px] text-slate-500 font-medium">
+            Actualisation automatique
+          </span>
+        </div>
+      </header>
+
+      {/* ──── Departure Cards ──── */}
+      <div className="flex-1 overflow-y-auto">
+        <AnimatePresence mode="popLayout">
+          {topFive.map((dep, i) => (
+            <MobileDepartureCard key={dep.id} departure={dep} index={i} />
+          ))}
+        </AnimatePresence>
+
+        {/* Pull-to-refresh hint */}
+        <div className="px-4 py-6 text-center">
+          <span className="text-[10px] text-slate-600 font-medium">
+            Tirez pour rafraîchir
+          </span>
+        </div>
+      </div>
+
+      {/* ──── Floating Subscribe Button ──── */}
+      <div className="fixed bottom-4 right-4 z-50 pb-[env(safe-area-inset-bottom)]">
+        <motion.button
+          whileTap={{ scale: 0.95 }}
+          whileHover={{ scale: 1.04 }}
+          className="flex items-center gap-2 h-11 px-5 rounded-full bg-gradient-to-r from-cyan-500 to-teal-500 text-white font-bold text-sm shadow-lg shadow-cyan-500/25 active:shadow-cyan-500/40 transition-shadow"
+          aria-label="S'abonner aux notifications"
+        >
+          <Bell className="w-4 h-4" />
+          <span>S&apos;abonner</span>
+        </motion.button>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   DESKTOP KIOSK (original display)
+   ═══════════════════════════════════════════════════════════ */
+
+function DesktopKiosk({
+  departures,
+  paused,
+  tickerMessages,
+  onTogglePause,
+}: {
+  departures: Departure[];
+  paused: boolean;
+  tickerMessages: TickerMessage[];
+  onTogglePause: () => void;
+}) {
   const onTimeCount = departures.filter((d) => d.status === 'on_time').length;
   const delayedCount = departures.filter((d) => d.status === 'delayed').length;
   const boardingCount = departures.filter((d) => d.status === 'boarding').length;
@@ -680,7 +748,7 @@ export function KioskDemo() {
 
         {/* Pause/Play button */}
         <button
-          onClick={() => setPaused((p) => !p)}
+          onClick={onTogglePause}
           className="absolute bottom-2 right-2 z-40 w-8 h-8 rounded-lg bg-black/40 hover:bg-black/60 border border-white/10 flex items-center justify-center text-slate-400 hover:text-white transition-all backdrop-blur-sm"
           title={paused ? 'Reprendre la simulation' : 'Pause'}
         >
@@ -699,5 +767,120 @@ export function KioskDemo() {
       {/* Subtle bottom reflection */}
       <div className="h-8 bg-gradient-to-b from-cyan-500/[0.03] to-transparent rounded-b-2xl blur-xl" />
     </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MAIN KIOSK DEMO COMPONENT (responsive wrapper)
+   ═══════════════════════════════════════════════════════════ */
+
+export function KioskDemo() {
+  const isMobile = useIsMobile();
+  const [departures, setDepartures] = useState<Departure[]>(generateInitialDepartures);
+  const [paused, setPaused] = useState(false);
+  const [tickerMessages] = useState<TickerMessage[]>(INITIAL_TICKER);
+  const departureIdRef = useRef(0);
+
+  // Simulation engine: modify departures every 4-7 seconds
+  useEffect(() => {
+    if (paused) return;
+
+    const interval = setInterval(() => {
+      setDepartures((prev) => {
+        const next = [...prev];
+        const action = Math.random();
+
+        // 20% chance: a "boarding" becomes "departed"
+        if (action < 0.2) {
+          const boardingIdx = next.findIndex(
+            (d) => d.status === 'boarding'
+          );
+          if (boardingIdx !== -1) {
+            next[boardingIdx] = { ...next[boardingIdx], status: 'departed' as DepartureStatus };
+          }
+        }
+        // 15% chance: an "on_time" becomes "boarding"
+        else if (action < 0.35) {
+          const onTimeIdx = next.findIndex(
+            (d) => d.status === 'on_time'
+          );
+          if (onTimeIdx !== -1) {
+            next[onTimeIdx] = { ...next[onTimeIdx], status: 'boarding' as DepartureStatus };
+          }
+        }
+        // 10% chance: an "on_time" becomes "delayed"
+        else if (action < 0.45) {
+          const onTimeIdx = next.findIndex(
+            (d) => d.status === 'on_time'
+          );
+          if (onTimeIdx !== -1) {
+            const delayMin = Math.floor(Math.random() * 15) + 5;
+            const now = new Date();
+            now.setMinutes(now.getMinutes() + delayMin);
+            const newTime = now.toLocaleTimeString('fr-FR', {
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false,
+            });
+            next[onTimeIdx] = {
+              ...next[onTimeIdx],
+              status: 'delayed' as DepartureStatus,
+              time: newTime,
+              notes: `+${delayMin} min`,
+            };
+          }
+        }
+        // 15% chance: remove first "departed" and add new departure at bottom
+        else if (action < 0.6) {
+          const departedIdx = next.findIndex(
+            (d) => d.status === 'departed'
+          );
+          if (departedIdx !== -1) {
+            departureIdRef.current += 1;
+            const config = LINE_CONFIGS[Math.floor(Math.random() * LINE_CONFIGS.length)];
+            const dest = DESTINATIONS[Math.floor(Math.random() * DESTINATIONS.length)];
+            const offset = Math.floor(Math.random() * 25) + 15;
+            next.splice(departedIdx, 1);
+            next.push({
+              id: `dep-new-${departureIdRef.current}`,
+              line: config.line,
+              lineColor: config.lineColor,
+              lineGradient: config.lineGradient,
+              lineBg: config.lineBg,
+              destination: dest.name,
+              time: getTimePlusMinutes(offset),
+              platform: PLATFORMS[Math.floor(Math.random() * PLATFORMS.length)],
+              status: 'on_time' as DepartureStatus,
+              vehicle: dest.vehicle,
+            });
+          }
+        }
+        // 10% chance: change a platform number
+        else if (action < 0.7) {
+          const idx = Math.floor(Math.random() * next.length);
+          if (next[idx].status !== 'departed') {
+            next[idx] = {
+              ...next[idx],
+              platform: PLATFORMS[Math.floor(Math.random() * PLATFORMS.length)],
+            };
+          }
+        }
+
+        return next;
+      });
+    }, 4500);
+
+    return () => clearInterval(interval);
+  }, [paused]);
+
+  return isMobile ? (
+    <MobileTimeline departures={departures} paused={paused} />
+  ) : (
+    <DesktopKiosk
+      departures={departures}
+      paused={paused}
+      tickerMessages={tickerMessages}
+      onTogglePause={() => setPaused((p) => !p)}
+    />
   );
 }

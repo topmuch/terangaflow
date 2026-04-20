@@ -62,10 +62,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fr" suppressHydrationWarning className="dark">
-      <body
-        className={`${inter.variable} ${geistMono.variable} font-sans antialiased bg-background text-foreground`}
-      >
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5" />
         <meta name="theme-color" content="#0B0F19" />
+        <meta name="theme-color" media="(prefers-color-scheme: light)" content="#0B0F19" />
+      </head>
+      <body
+        className={`${inter.variable} ${geistMono.variable} font-sans antialiased bg-background text-foreground overscroll-contain`}
+      >
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"

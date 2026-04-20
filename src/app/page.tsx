@@ -70,6 +70,10 @@ const DashboardSidebar = dynamic(
   () => import('@/components/dashboard/Sidebar').then(m => ({ default: m.Sidebar })),
   { ssr: false }
 );
+const MobileDrawer = dynamic(
+  () => import('@/components/mobile/MobileDrawer').then(m => ({ default: m.MobileDrawer })),
+  { ssr: false }
+);
 const ApiDocumentation = dynamic(
   () => import('@/components/api-docs/api-documentation'),
   { ssr: false }
@@ -332,7 +336,7 @@ function Navbar({
 
 function HeroSection({ onTryDemo }: { onTryDemo: () => void }) {
   return (
-    <section className="relative min-h-screen flex items-center pt-20 overflow-hidden">
+    <section id="hero-section" className="relative min-h-screen flex items-center pt-20 overflow-hidden">
       <FloatingShapes />
 
       {/* Gradient overlay at top */}
@@ -408,12 +412,12 @@ function HeroSection({ onTryDemo }: { onTryDemo: () => void }) {
 
           {/* Right: Kiosk Demo — Live Screen Simulation */}
           <FadeIn delay={0.2} direction="right" className="relative">
-            <div className="relative mx-auto max-w-2xl lg:max-w-none">
-              {/* Floating badges */}
+            <div className="relative mx-auto max-w-2xl lg:max-w-none max-h-[60vh] lg:max-h-none overflow-hidden">
+              {/* Floating badges — hidden on mobile */}
               <motion.div
                 animate={{ y: [0, -8, 0] }}
                 transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-                className="absolute -top-4 -right-2 z-40 glass rounded-xl px-3 py-2 flex items-center gap-2 shadow-lg shadow-cyan-500/10"
+                className="hidden sm:flex absolute -top-4 -right-2 z-40 glass rounded-xl px-3 py-2 items-center gap-2 shadow-lg shadow-cyan-500/10"
               >
                 <Bell className="w-4 h-4 text-orange-400" />
                 <span className="text-xs font-semibold text-white">+847 push envoyés</span>
@@ -422,7 +426,7 @@ function HeroSection({ onTryDemo }: { onTryDemo: () => void }) {
               <motion.div
                 animate={{ y: [0, 8, 0] }}
                 transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
-                className="absolute -bottom-4 -left-2 z-40 glass rounded-xl px-3 py-2 flex items-center gap-2 shadow-lg shadow-violet-500/10"
+                className="hidden sm:flex absolute -bottom-4 -left-2 z-40 glass rounded-xl px-3 py-2 items-center gap-2 shadow-lg shadow-violet-500/10"
               >
                 <TrendingUp className="w-4 h-4 text-emerald-400" />
                 <span className="text-xs font-semibold text-white">+340% revenus pub</span>
@@ -676,7 +680,7 @@ function HowItWorksSection() {
           </p>
         </FadeUp>
 
-        <div className="grid md:grid-cols-3 gap-8 lg:gap-12">
+        <div className="grid md:grid-cols-3 gap-10 md:gap-8 lg:gap-12">
           {steps.map((step, i) => (
             <FadeUp key={step.number} delay={i * 0.15}>
               <div className="relative text-center md:text-left">
@@ -785,11 +789,11 @@ function PricingSection() {
           </p>
         </FadeUp>
 
-        <div className="grid md:grid-cols-3 gap-6 lg:gap-8 max-w-5xl mx-auto">
+        <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 mobile-scroll pb-4 -mx-4 px-4 md:grid md:grid-cols-3 md:gap-6 lg:gap-8 md:max-w-5xl md:mx-auto md:pb-0 md:mx-4 md:px-0">
           {plans.map((plan, i) => (
             <FadeUp key={plan.name} delay={i * 0.12}>
               <div
-                className={`relative rounded-2xl p-6 sm:p-8 flex flex-col ${
+                className={`relative rounded-2xl p-6 sm:p-8 flex flex-col min-w-[280px] sm:min-w-[300px] snap-start flex-shrink-0 md:min-w-0 ${
                   plan.popular
                     ? 'pricing-border-animated bg-white/[0.04] shadow-2xl shadow-cyan-500/10'
                     : 'border border-white/5 bg-white/[0.02] hover:border-white/10 hover:bg-white/[0.03]'
@@ -856,6 +860,18 @@ function PricingSection() {
    ============================================================ */
 
 function TestimonialsSection() {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [activeDot, setActiveDot] = useState(0);
+
+  const handleScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const scrollLeft = el.scrollLeft;
+    const cardWidth = el.firstElementChild?.getBoundingClientRect().width ?? 300;
+    const idx = Math.round(scrollLeft / (cardWidth + 16)); // 16 = gap-4
+    setActiveDot(Math.min(idx, 2));
+  }, []);
+
   return (
     <section className="relative py-20 sm:py-28 border-y border-white/5 overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-br from-violet-500/[0.03] via-transparent to-cyan-500/[0.03] pointer-events-none" />
@@ -871,7 +887,7 @@ function TestimonialsSection() {
           </h2>
         </FadeUp>
 
-        <div className="grid md:grid-cols-3 gap-6 lg:gap-8">
+        <div ref={scrollRef} onScroll={handleScroll} className="flex overflow-x-auto snap-x snap-mandatory gap-4 mobile-scroll pb-4 -mx-4 px-4 md:grid md:grid-cols-3 md:gap-6 lg:gap-8 md:pb-0 md:mx-0 md:px-8">
           {[
             {
               quote:
@@ -899,7 +915,7 @@ function TestimonialsSection() {
             },
           ].map((testimonial, i) => (
             <FadeUp key={testimonial.name} delay={i * 0.12}>
-              <div className="relative rounded-2xl p-6 border border-white/5 bg-white/[0.02] backdrop-blur-sm hover:bg-white/[0.04] transition-all duration-300 group">
+              <div className="relative rounded-2xl p-6 border border-white/5 bg-white/[0.02] backdrop-blur-sm hover:bg-white/[0.04] transition-all duration-300 group min-w-[280px] sm:min-w-[300px] snap-start flex-shrink-0">
                 {/* Quote icon */}
                 <div className="absolute top-4 right-4 text-6xl font-serif text-white/5 leading-none select-none">
                   &ldquo;
@@ -935,6 +951,13 @@ function TestimonialsSection() {
                 </div>
               </div>
             </FadeUp>
+          ))}
+        </div>
+
+        {/* Mobile scroll indicator dots */}
+        <div className="flex justify-center gap-2 mt-6 md:hidden">
+          {[0, 1, 2].map((idx) => (
+            <div key={idx} className={`w-2 h-2 rounded-full transition-colors duration-300 ${idx === activeDot ? 'bg-cyan-400' : 'bg-white/20'}`} />
           ))}
         </div>
 
@@ -1032,6 +1055,46 @@ function CtaFinalSection({ onMerchantRegister }: { onMerchantRegister: () => voi
         </FadeUp>
       </div>
     </section>
+  );
+}
+
+/* ============================================================
+   MOBILE STICKY CTA
+   ============================================================ */
+
+function MobileStickyCta() {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const heroEl = document.getElementById('hero-section');
+    if (!heroEl) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setVisible(!entry.isIntersecting);
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(heroEl);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div
+      className={`fixed bottom-0 left-0 right-0 z-40 md:hidden transition-transform duration-300 ${
+        visible ? 'translate-y-0' : 'translate-y-full'
+      }`}
+    >
+      <div className="glass-strong border-t border-white/10 px-4 py-3 pb-[env(safe-area-inset-bottom,12px)]">
+        <a href="#cta-final">
+          <Button className="w-full gradient-bg-animated text-white font-bold py-5 border-0 shadow-lg shadow-cyan-500/25 text-base">
+            Essai gratuit 14 jours
+            <ArrowRight className="w-4 h-4 ml-2" />
+          </Button>
+        </a>
+      </div>
+    </div>
   );
 }
 
@@ -1253,6 +1316,12 @@ function DashboardView({
   const [selectedStationId, setSelectedStationId] = useState<string | null>(null);
   const [sidebarTab, setSidebarTab] = useState('overview');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+
+  const handleTabChange = useCallback((tab: string) => {
+    setSidebarTab(tab);
+    setMobileDrawerOpen(false);
+  }, []);
 
   const isSuperAdmin = user?.role === 'SUPERADMIN';
   const isTransporter = user?.role === 'TRANSPORTER';
@@ -1286,18 +1355,36 @@ function DashboardView({
 
   return (
     <div className="h-screen flex bg-[#0B0F19] overflow-hidden">
-      <DashboardSidebar
+      <div className="hidden md:block shrink-0">
+        <DashboardSidebar
+          user={user}
+          activeTab={sidebarTab}
+          onTabChange={setSidebarTab}
+          onLogout={onLogout}
+          onBack={onBack}
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+        />
+      </div>
+      <MobileDrawer
+        open={mobileDrawerOpen}
+        onClose={() => setMobileDrawerOpen(false)}
         user={user}
         activeTab={sidebarTab}
-        onTabChange={setSidebarTab}
+        onTabChange={handleTabChange}
         onLogout={onLogout}
         onBack={onBack}
-        collapsed={sidebarCollapsed}
-        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
       />
       <main className="flex-1 overflow-y-auto bg-[#0B0F19]">
         <header className="sticky top-0 z-10 border-b border-white/5 bg-[#0B0F19]/80 backdrop-blur-sm px-4 md:px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3 min-w-0">
+            <button
+              onClick={() => setMobileDrawerOpen(true)}
+              className="md:hidden p-2 -ml-2 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+              aria-label="Ouvrir le menu"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
             <h1 className="text-lg font-bold text-white truncate">
               {sidebarTab === 'overview' && "Vue d'ensemble"}
               {sidebarTab === 'lines' && 'Gestion des Lignes'}
@@ -1482,6 +1569,7 @@ export default function TerangaFlowPage() {
               <PricingSection />
               <TestimonialsSection />
               <CtaFinalSection onMerchantRegister={() => setViewMode('merchant-register')} />
+              <MobileStickyCta />
             </main>
             <Footer />
           </motion.div>

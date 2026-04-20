@@ -332,4 +332,193 @@ body::-webkit-scrollbar-thumb:hover {
   --wl-primary: #06B6D4;
   --wl-accent: #3B82F6;
   --wl-app-name: "TerangaFlow";
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MOBILE-FIRST UTILITIES
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Safe Area Padding ── */
+.safe-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.safe-left {
+  padding-left: env(safe-area-inset-left, 0px);
+}
+
+.safe-right {
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+.safe-all {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* ── Mobile Touch Target Enforcement ── */
+@media (pointer: coarse) {
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* ── Overscroll Behavior ── */
+.overscroll-none {
+  overscroll-behavior: none;
+}
+
+.overscroll-contain {
+  overscroll-behavior: contain;
+}
+
+/* Prevent body overscroll bounce on iOS */
+body {
+  overscroll-behavior-y: contain;
+}
+
+/* ── Mobile Scrollbar (hidden for cleaner look) ── */
+@media (max-width: 767px) {
+  .mobile-scroll::-webkit-scrollbar {
+    display: none;
+  }
+
+  .mobile-scroll {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+/* ── Pull-to-Refresh Indicator ── */
+@keyframes pull-indicator {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.pull-refreshing .pull-icon {
+  animation: pull-indicator 1s linear infinite;
+}
+
+/* ── Mobile Card Hover Fix (no hover on touch devices) ── */
+@media (hover: none) {
+  .hover-lift {
+    transform: none !important;
+    box-shadow: none !important;
+  }
+}
+
+/* ── Bottom Nav Safe Area ── */
+.bottom-nav-safe {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 56px);
+}
+
+/* ── Standalone PWA adjustments ── */
+@media (display-mode: standalone) {
+  .pwa-hide {
+    display: none !important;
+  }
+
+  .pwa-fullscreen {
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+
+/* ── Swipeable Container ── */
+.swipeable {
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x mandatory;
+}
+
+.swipeable > * {
+  scroll-snap-align: start;
+}
+
+.swipeable::-webkit-scrollbar {
+  display: none;
+}
+
+.swipeable {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ── Mobile Timeline Connector ── */
+.timeline-connector {
+  position: absolute;
+  left: 19px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(180deg, rgba(6, 182, 212, 0.3), rgba(6, 182, 212, 0.05));
+}
+
+/* ── Mobile Skeleton Shimmer ── */
+@keyframes mobile-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton-mobile {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.03) 25%,
+    rgba(255, 255, 255, 0.08) 50%,
+    rgba(255, 255, 255, 0.03) 75%
+  );
+  background-size: 200% 100%;
+  animation: mobile-shimmer 1.5s ease-in-out infinite;
+}
+
+/* ── Mobile Drawer Overlay ── */
+.drawer-overlay {
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+/* ── Focus Visible for Mobile Keyboard Nav ── */
+:focus-visible {
+  outline: 2px solid #06B6D4;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Remove focus ring on tap for touch devices */
+@media (pointer: coarse) {
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+}
+
+/* ── Mobile Haptic Feedback Placeholder ── */
+@media (hover: none) and (pointer: coarse) {
+  .haptic {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* ── Viewport Height Fix (100vh on mobile) ── */
+@supports (height: 100dvh) {
+  .h-screen-safe {
+    height: 100dvh;
+  }
+}
+
+@supports not (height: 100dvh) {
+  .h-screen-safe {
+    height: 100vh;
+    height: -webkit-fill-available;
+  }
 }
