@@ -509,3 +509,43 @@ Stage Summary:
 - White Label: middleware domain routing + branding API + WhiteLabelSection settings UI
 - Zero lint errors, clean compilation
 - All 8 phases of SmartTicketQR platform are finished
+
+---
+Task ID: audit-1
+Agent: Main Architect
+Task: Homepage Display Fix + Full 8-Phase Audit — Critical Bug Fixes
+
+Work Log:
+- Investigated homepage display issue: identified massive monolithic page.tsx (949 lines) with ~30 eager imports causing slow rendering
+- Found duplicate kiosk mode hooks (useKioskMode from 2 different files both initialized)
+- All dashboard components (StationDashboard, TransporterDashboard, MonetizationDashboard, ApiDocumentation, ThemeCustomizer, DataPrivacyPanel) loaded eagerly on landing page
+- REWRITTEN src/app/page.tsx:
+  - Used next/dynamic for lazy loading 11 heavy components (SSR disabled)
+  - Removed duplicate kiosk mode hook (now uses single useKioskMode from useKioskMode.ts)
+  - Added empty state for stations list (Building2 icon + message)
+  - Fixed blue Kiosk button color to teal (matching design system, no blue/indigo)
+  - Fixed station selector active button from blue-600 to emerald-600
+  - Reduced page.tsx from 949 to ~580 lines
+- FIXED src/hooks/useScreenAnalytics.ts:
+  - Changed sendBeacon from string to Blob with Content-Type application/json
+  - Server endpoint request.json() now correctly parses the body
+- FIXED src/app/api/analytics/track/route.ts:
+  - Added IP-based rate limiting: 60 events/minute per IP
+  - Periodic cleanup of stale rate limit entries (every 5 minutes)
+  - Returns 429 when rate limit exceeded
+- FIXED src/app/api/stations/branding/route.ts:
+  - Added auth check to PATCH endpoint (Authorization header required)
+  - Token validation (mock_token_ prefix for demo, JWT for production)
+  - Role-based access control (SUPERADMIN, STATION_MANAGER only)
+  - Tenant isolation check (non-superadmins can only edit their tenant's stations)
+  - Hex color validation for brandColor field
+- VERIFIED: No TypeScript `any` types in codebase
+- VERIFIED: ESLint 0 errors, 0 warnings
+- VERIFIED: Dev server HTTP 200, clean rendering with all sections visible
+
+Stage Summary:
+- Homepage display fix: lazy-loaded 11 heavy components, removed duplicate hooks
+- sendBeacon Content-Type fix: Blob with application/json
+- Analytics rate limiting: 60 req/min per IP with 429 response
+- Branding PATCH auth: Bearer token + RBAC + tenant isolation
+- All fixes validated: lint clean, dev server 200, zero TypeScript any types
