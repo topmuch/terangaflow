@@ -1,9 +1,10 @@
 import { db } from '@/lib/db';
 import { notFound } from 'next/navigation';
 import {
-  MapPin, MessageCircle, Gift, Phone, Navigation, Copy, CheckCircle, Star,
-  Clock, Share2,
+  MapPin, MessageCircle, Gift, Phone, Navigation, CheckCircle, Star,
+  Clock,
 } from 'lucide-react';
+import { CopyPromoButton } from '@/components/p/CopyPromoButton';
 
 export default async function MerchantLandingPage({
   params,
@@ -38,10 +39,6 @@ export default async function MerchantLandingPage({
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
     `${merchant.name} ${merchant.category} ${station?.city || 'Dakar'}`
   )}`;
-
-  // Build the full public URL for sharing
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://terangaflow.app';
-  const publicUrl = `${baseUrl}/p/${stationId}/${merchantId}`;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 flex flex-col items-center pt-6 px-4 pb-10">
@@ -231,29 +228,5 @@ export default async function MerchantLandingPage({
         </div>
       </div>
     </div>
-  );
-}
-
-// Client component for copy button (needs interactivity)
-function CopyPromoButton({ code }: { code: string }) {
-  return (
-    <button
-      onClick={() => {
-        if (typeof navigator !== 'undefined' && navigator.clipboard) {
-          navigator.clipboard.writeText(code);
-        }
-        // Visual feedback - change text briefly
-        const el = document.activeElement?.closest('button');
-        if (el) {
-          const original = el.innerHTML;
-          el.innerHTML = '<span class="text-green-500 text-lg">✓</span><span class="text-xs font-bold text-green-600">Copié !</span>';
-          setTimeout(() => { el.innerHTML = original; }, 1500);
-        }
-      }}
-      className="flex flex-col items-center justify-center gap-1.5 bg-amber-500 hover:bg-amber-600 active:scale-95 text-white py-4 rounded-2xl font-bold transition-all shadow-lg shadow-amber-500/20"
-    >
-      <Copy className="w-6 h-6" />
-      <span className="text-xs font-bold">Code promo</span>
-    </button>
   );
 }

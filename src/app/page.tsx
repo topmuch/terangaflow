@@ -31,8 +31,6 @@ import {
   LogOut,
   Shield,
   Loader2,
-  Route,
-  AlertTriangle,
   Store,
 } from 'lucide-react';
 import { toast } from 'sonner';
