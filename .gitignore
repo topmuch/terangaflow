@@ -52,3 +52,18 @@ prompt
 server.log
 # Skills directory
 /skills/
+
+# Database files
+/db/*.db
+/db/*.db-journal
+
+# Agent & work files
+/agent-ctx/
+/worklog.md
+*.png
+!/public/*.png
+!/public/*.svg
+
+# Upload & temp
+/upload/
+/download/
