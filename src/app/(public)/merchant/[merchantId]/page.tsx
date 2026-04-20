@@ -1,47 +1,34 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { use, useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Store,
-  Clock,
-  ShieldX,
-  CheckCircle2,
   Loader2,
-  AlertTriangle,
-  ArrowLeft,
   Bus,
+  ArrowLeft,
+  Eye,
+  EyeOff,
+  AlertCircle,
+  Shield,
 } from 'lucide-react';
 
 /* ============================================================
    Types
    ============================================================ */
 
-interface MerchantData {
-  id: string;
+interface MerchantAuthData {
+  merchantId: string;
+  merchantName: string;
   stationId: string;
-  name: string;
-  description: string | null;
-  category: string;
-  phone: string | null;
-  email: string | null;
-  logoUrl: string | null;
-  imageUrl: string | null;
-  contactUrl: string | null;
-  offerText: string | null;
-  offerCode: string | null;
-  isActive: boolean;
-  deletedAt: string | null;
-  station: {
-    name: string;
-    city: string;
-    code: string;
-  };
+  stationName: string;
+  loginAt?: string;
 }
 
 /* ============================================================
@@ -64,241 +51,293 @@ const MerchantDashboard = dynamic(
 );
 
 /* ============================================================
-   Status Screens
-   ============================================================ */
-
-function PendingScreen({ merchant }: { merchant: MerchantData }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
-      className="min-h-screen flex items-center justify-center p-4 sm:p-8"
-    >
-      <Card className="w-full max-w-md border-0 shadow-2xl shadow-amber-500/10 bg-white">
-        <CardContent className="p-8 sm:p-10 text-center space-y-6">
-          <div className="mx-auto w-20 h-20 rounded-full bg-amber-100 flex items-center justify-center">
-            <Clock className="w-10 h-10 text-amber-500" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-extrabold text-slate-900 mb-2">
-              En attente de validation
-            </h1>
-            <p className="text-slate-500 text-sm leading-relaxed">
-              Votre inscription pour <span className="font-semibold text-slate-700">{merchant.name}</span> a
-              bien été reçue.
-            </p>
-          </div>
-          <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-50 border border-amber-100 text-left">
-            <Clock className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
-            <p className="text-sm text-amber-800">
-              Votre demande est en cours de traitement. Vous recevrez une confirmation par email
-              sous 24h maximum.
-            </p>
-          </div>
-          <div className="pt-2 text-xs text-slate-400">
-            Gare : {merchant.station.name} ({merchant.station.city})
-          </div>
-          <Button
-            variant="outline"
-            onClick={() => window.location.href = '/'}
-            className="text-slate-500 hover:text-slate-700"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Retour à l&apos;accueil
-          </Button>
-        </CardContent>
-      </Card>
-    </motion.div>
-  );
-}
-
-function DisabledScreen({ merchant }: { merchant: MerchantData }) {
-  const isExpired = !merchant.isActive && merchant.deletedAt;
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
-      className="min-h-screen flex items-center justify-center p-4 sm:p-8"
-    >
-      <Card className="w-full max-w-md border-0 shadow-2xl shadow-red-500/10 bg-white">
-        <CardContent className="p-8 sm:p-10 text-center space-y-6">
-          <div className="mx-auto w-20 h-20 rounded-full bg-red-100 flex items-center justify-center">
-            {isExpired ? (
-              <AlertTriangle className="w-10 h-10 text-red-500" />
-            ) : (
-              <ShieldX className="w-10 h-10 text-red-500" />
-            )}
-          </div>
-          <div>
-            <h1 className="text-2xl font-extrabold text-slate-900 mb-2">Compte désactivé</h1>
-            <p className="text-slate-500 text-sm leading-relaxed">
-              Le compte de <span className="font-semibold text-slate-700">{merchant.name}</span> a
-              été {isExpired ? 'supprimé' : 'suspendu'}.
-            </p>
-          </div>
-          <div className="flex items-start gap-3 p-4 rounded-xl bg-red-50 border border-red-100 text-left">
-            <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5 shrink-0" />
-            <p className="text-sm text-red-800">
-              Si vous pensez qu&apos;il s&apos;agit d&apos;une erreur, veuillez contacter le
-              responsable de la gare ou nous écrire à support@terangaflow.app
-            </p>
-          </div>
-          <Button
-            variant="outline"
-            onClick={() => window.location.href = '/'}
-            className="text-slate-500 hover:text-slate-700"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Retour à l&apos;accueil
-          </Button>
-        </CardContent>
-      </Card>
-    </motion.div>
-  );
-}
-
-/* ============================================================
    Main Page Component
    ============================================================ */
 
-export default function MerchantPublicPage() {
-  const params = useParams();
-  const merchantId = params.merchantId as string;
+export default function MerchantPortalPage({
+  params,
+}: {
+  params: Promise<{ merchantId: string }>;
+}) {
+  const { merchantId } = use(params);
+  const router = useRouter();
 
-  const [merchant, setMerchant] = useState<MerchantData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [merchantData, setMerchantData] = useState<MerchantAuthData | null>(null);
+  const [loginForm, setLoginForm] = useState({ email: '', password: '' });
+  const [loginError, setLoginError] = useState('');
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
 
+  // Check localStorage on mount
   useEffect(() => {
-    let cancelled = false;
-
-    async function fetchMerchant() {
-      try {
-        const res = await fetch(`/api/merchants/${merchantId}`);
-        const json = await res.json();
-
-        if (!cancelled) {
-          if (!json.success) {
-            setError(json.error || 'Commerçant introuvable');
-            setLoading(false);
-            return;
-          }
-
-          setMerchant(json.data);
-          setLoading(false);
-        }
-      } catch {
-        if (!cancelled) {
-          setError('Erreur réseau. Veuillez réessayer.');
-          setLoading(false);
+    try {
+      const stored = localStorage.getItem('merchantAuth');
+      if (stored) {
+        const data = JSON.parse(stored) as MerchantAuthData;
+        if (data.merchantId === merchantId) {
+          setMerchantData(data);
+          setIsAuthenticated(true);
         }
       }
+    } catch {
+      // Ignore parse errors
     }
-
-    if (merchantId) {
-      fetchMerchant();
-    }
-
-    return () => {
-      cancelled = true;
-    };
+    setIsInitialized(true);
   }, [merchantId]);
 
-  // Loading state
-  if (loading) {
+  // Handle login
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginLoading(true);
+    setLoginError('');
+
+    try {
+      const res = await fetch('/api/merchants/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(loginForm),
+      });
+      const json = await res.json();
+
+      if (json.success) {
+        const data: MerchantAuthData = {
+          merchantId: json.data.merchantId,
+          merchantName: json.data.merchantName,
+          stationId: json.data.stationId,
+          stationName: json.data.stationName,
+          loginAt: json.data.loginAt,
+        };
+        setMerchantData(data);
+        setIsAuthenticated(true);
+        localStorage.setItem('merchantAuth', JSON.stringify(data));
+      } else {
+        setLoginError(json.error === 'Your account is pending validation. Please wait for an administrator to approve your registration.'
+          ? 'Votre compte est en attente de validation. Veuillez patienter.'
+          : json.error === 'Invalid email or password'
+            ? 'Email ou mot de passe incorrect'
+            : json.error || 'Identifiants incorrects');
+      }
+    } catch {
+      setLoginError('Erreur de connexion au serveur');
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  // Handle logout
+  const handleLogout = () => {
+    localStorage.removeItem('merchantAuth');
+    setMerchantData(null);
+    setIsAuthenticated(false);
+    setLoginForm({ email: '', password: '' });
+    setLoginError('');
+  };
+
+  // Wait for initialization check
+  if (!isInitialized) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 via-white to-emerald-50/30">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center">
-            <Loader2 className="w-6 h-6 text-emerald-600 animate-spin" />
+      <div className="min-h-screen bg-gradient-to-br from-emerald-950 via-slate-950 to-slate-900 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
+      </div>
+    );
+  }
+
+  // If authenticated, show MerchantDashboard
+  if (isAuthenticated && merchantData) {
+    return (
+      <div className="min-h-screen bg-[#0B0F19]">
+        {/* Top Bar */}
+        <header className="border-b border-slate-800/60 bg-[#0B0F19]/80 backdrop-blur-xl sticky top-0 z-50">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center">
+                <Bus className="w-3.5 h-3.5 text-white" />
+              </div>
+              <span className="text-base font-bold tracking-tight text-white">TerangaFlow</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-emerald-400 font-medium hidden sm:inline">{merchantData.merchantName}</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleLogout}
+                className="text-slate-400 hover:text-white hover:bg-slate-800 gap-1.5 text-xs"
+              >
+                <Shield className="w-3.5 h-3.5" />
+                Déconnexion
+              </Button>
+            </div>
           </div>
-          <p className="text-sm text-slate-500">Chargement...</p>
-        </div>
+        </header>
+
+        {/* Dashboard Content */}
+        <main className="max-w-5xl mx-auto p-4 sm:p-6">
+          <MerchantDashboard
+            merchantId={merchantData.merchantId}
+            merchantName={merchantData.merchantName}
+            stationId={merchantData.stationId}
+            stationName={merchantData.stationName}
+            onLogout={handleLogout}
+          />
+        </main>
       </div>
     );
   }
 
-  // Error / Not found
-  if (error || !merchant) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4 sm:p-8 bg-gradient-to-br from-slate-50 via-white to-emerald-50/30">
-        <Card className="w-full max-w-md border-0 shadow-2xl shadow-slate-200/50 bg-white">
-          <CardContent className="p-8 sm:p-10 text-center space-y-6">
-            <div className="mx-auto w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center">
-              <Store className="w-10 h-10 text-slate-400" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-extrabold text-slate-900 mb-2">Commerçant introuvable</h1>
-              <p className="text-slate-500 text-sm">
-                {error || "Ce commerçant n'existe pas ou a été supprimé."}
-              </p>
-            </div>
-            <Button
-              variant="outline"
-              onClick={() => window.location.href = '/'}
-              className="text-slate-500 hover:text-slate-700"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Retour à l&apos;accueil
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  // Merchant exists but status determines what to show
-  // isActive=true means ACTIVE, isActive=false with no deletedAt could be SUSPENDED,
-  // deletedAt set means EXPIRED
-  if (!merchant.isActive) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-emerald-50/30">
-        <DisabledScreen merchant={merchant} />
-      </div>
-    );
-  }
-
-  // For "PENDING" status: we check if the merchant was created recently
-  // Since the register API sets isActive=true, PENDING merchants don't really exist in our model.
-  // We'll show the dashboard for any active merchant.
-  // However, to support the PENDING concept from the requirements, we check if the merchant
-  // has been "validated" (has station data, etc.)
-  // In practice, all registered merchants are active. The dashboard will show.
-
+  // Login form
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-emerald-50/30">
-      {/* Top Bar */}
-      <header className="border-b border-slate-200/80 bg-white/70 backdrop-blur-xl sticky top-0 z-50">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center">
-              <Bus className="w-3.5 h-3.5 text-white" />
-            </div>
-            <span className="text-base font-bold tracking-tight text-slate-900">TerangaFlow</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-xs font-medium text-emerald-600 border-emerald-200 bg-emerald-50">
-              <Store className="w-3 h-3 mr-1" />
-              {merchant.name}
-            </Badge>
-            <Badge variant="outline" className="text-xs text-slate-500 border-slate-200 hidden sm:inline-flex">
-              {merchant.station.name}
-            </Badge>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-gradient-to-br from-emerald-950 via-slate-950 to-slate-900 flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Background decorations */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-96 h-96 rounded-full bg-emerald-500/5 blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full bg-cyan-500/5 blur-3xl" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-emerald-500/3 blur-3xl" />
+      </div>
 
-      {/* Dashboard Content */}
-      <main className="max-w-5xl mx-auto p-4 sm:p-6">
-        <MerchantDashboard
-          merchantId={merchant.id}
-          merchantName={merchant.name}
-          stationId={merchant.stationId}
-          stationName={merchant.station.name}
-        />
-      </main>
+      <AnimatePresence mode="wait">
+        <motion.div
+          key="login-form"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: 'easeOut' }}
+          className="w-full max-w-md relative z-10"
+        >
+          <Card className="border border-slate-800/60 bg-slate-900/80 backdrop-blur-xl shadow-2xl shadow-emerald-500/5 overflow-hidden">
+            <CardContent className="p-0">
+              {/* Header */}
+              <div className="px-8 pt-8 pb-2 text-center">
+                <motion.div
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ delay: 0.1, duration: 0.3 }}
+                  className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center mb-5 shadow-lg shadow-emerald-500/20"
+                >
+                  <Store className="w-8 h-8 text-white" />
+                </motion.div>
+                <h1 className="text-2xl font-extrabold text-white tracking-tight">
+                  Espace Marchand
+                </h1>
+                <p className="text-sm text-slate-400 mt-2 max-w-sm mx-auto">
+                  Connectez-vous pour accéder à votre tableau de bord et gérer votre commerce
+                </p>
+              </div>
+
+              {/* Form */}
+              <form onSubmit={handleLogin} className="px-8 py-6 space-y-5">
+                {/* Error message */}
+                {loginError && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex items-start gap-2.5 p-3 rounded-xl bg-red-500/10 border border-red-500/20"
+                  >
+                    <AlertCircle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
+                    <p className="text-sm text-red-300">{loginError}</p>
+                  </motion.div>
+                )}
+
+                {/* Email field */}
+                <div className="space-y-2">
+                  <Label htmlFor="login-email" className="text-slate-300 text-sm font-medium">
+                    Adresse email
+                  </Label>
+                  <Input
+                    id="login-email"
+                    type="email"
+                    placeholder="votre@email.com"
+                    value={loginForm.email}
+                    onChange={(e) => setLoginForm((prev) => ({ ...prev, email: e.target.value }))}
+                    required
+                    autoComplete="email"
+                    disabled={loginLoading}
+                    className="h-11 bg-slate-800/80 border-slate-700 text-white placeholder:text-slate-500 focus-visible:ring-emerald-500/50 focus-visible:border-emerald-500/50 transition-colors"
+                  />
+                </div>
+
+                {/* Password field */}
+                <div className="space-y-2">
+                  <Label htmlFor="login-password" className="text-slate-300 text-sm font-medium">
+                    Mot de passe
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="login-password"
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="••••••••"
+                      value={loginForm.password}
+                      onChange={(e) => setLoginForm((prev) => ({ ...prev, password: e.target.value }))}
+                      required
+                      autoComplete="current-password"
+                      disabled={loginLoading}
+                      className="h-11 bg-slate-800/80 border-slate-700 text-white placeholder:text-slate-500 focus-visible:ring-emerald-500/50 focus-visible:border-emerald-500/50 transition-colors pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+                      tabIndex={-1}
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Submit button */}
+                <Button
+                  type="submit"
+                  disabled={loginLoading || !loginForm.email || !loginForm.password}
+                  className="w-full h-11 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white font-semibold gap-2 shadow-lg shadow-emerald-500/20 transition-all"
+                >
+                  {loginLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Connexion en cours...
+                    </>
+                  ) : (
+                    'Se connecter'
+                  )}
+                </Button>
+              </form>
+
+              {/* Footer */}
+              <div className="px-8 pb-8 pt-2 space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-px bg-slate-800" />
+                  <span className="text-xs text-slate-600">ou</span>
+                  <div className="flex-1 h-px bg-slate-800" />
+                </div>
+
+                <div className="flex flex-col items-center gap-2">
+                  <a
+                    href="/register"
+                    className="text-sm text-emerald-400 hover:text-emerald-300 transition-colors font-medium"
+                  >
+                    Pas encore inscrit ? Créer un compte
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => router.push('/')}
+                    className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-300 transition-colors"
+                  >
+                    <ArrowLeft className="w-3 h-3" />
+                    Retour à l&apos;accueil
+                  </button>
+                </div>
+
+                {/* Branding */}
+                <div className="flex items-center justify-center gap-2 pt-2">
+                  <div className="w-5 h-5 rounded-md bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center">
+                    <Bus className="w-2.5 h-2.5 text-white" />
+                  </div>
+                  <span className="text-xs font-semibold text-slate-600 tracking-tight">TerangaFlow</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </AnimatePresence>
     </div>
   );
 }

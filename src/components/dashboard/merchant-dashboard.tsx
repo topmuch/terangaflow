@@ -47,6 +47,7 @@ import {
   RefreshCw,
   Shield,
   Zap,
+  LogOut,
 } from 'lucide-react';
 
 // ============================================================
@@ -58,6 +59,7 @@ interface MerchantDashboardProps {
   merchantName: string;
   stationId: string;
   stationName: string;
+  onLogout?: () => void;
 }
 
 interface Merchant {
@@ -76,6 +78,10 @@ interface Merchant {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  status: string;
+  planType: string;
+  subscriptionStart: string | null;
+  subscriptionEnd: string | null;
   _count: { qrScans: number; offers: number };
   offers: Array<{ id: string; title: string; isActive: boolean }>;
 }
@@ -132,7 +138,7 @@ const tabVariants = {
 // Main Component
 // ============================================================
 
-export function MerchantDashboard({ merchantId, merchantName, stationId, stationName }: MerchantDashboardProps) {
+export function MerchantDashboard({ merchantId, merchantName, stationId, stationName, onLogout }: MerchantDashboardProps) {
   const [activeTab, setActiveTab] = useState('overview');
 
   // Fetch merchant data - get all for station then filter by merchantId
@@ -166,25 +172,38 @@ export function MerchantDashboard({ merchantId, merchantName, stationId, station
             </p>
           </div>
         </div>
-        {merchant && (
-          <Badge
-            variant="outline"
-            className={cn(
-              'text-xs font-medium gap-1.5',
-              merchant.isActive
-                ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10'
-                : 'text-slate-400 border-slate-500/30 bg-slate-500/10',
-            )}
-          >
-            <div
+        <div className="flex items-center gap-2">
+          {merchant && (
+            <Badge
+              variant="outline"
               className={cn(
-                'w-1.5 h-1.5 rounded-full',
-                merchant.isActive ? 'bg-emerald-500 animate-pulse' : 'bg-slate-500',
+                'text-xs font-medium gap-1.5',
+                merchant.isActive
+                  ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10'
+                  : 'text-slate-400 border-slate-500/30 bg-slate-500/10',
               )}
-            />
-            {merchant.isActive ? 'En ligne' : 'Hors ligne'}
-          </Badge>
-        )}
+            >
+              <div
+                className={cn(
+                  'w-1.5 h-1.5 rounded-full',
+                  merchant.isActive ? 'bg-emerald-500 animate-pulse' : 'bg-slate-500',
+                )}
+              />
+              {merchant.isActive ? 'En ligne' : 'Hors ligne'}
+            </Badge>
+          )}
+          {onLogout && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onLogout}
+              className="text-slate-500 hover:text-red-400 hover:bg-red-500/10 gap-1.5 text-xs h-8"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Déconnexion</span>
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Tabs */}
@@ -245,7 +264,7 @@ export function MerchantDashboard({ merchantId, merchantName, stationId, station
             )}
             {activeTab === 'renewal' && (
               <motion.div key="renewal" variants={tabVariants} initial="initial" animate="animate" exit="exit">
-                <RenewalTab merchant={merchant} isLoading={isLoading} />
+                <RenewalTab merchant={merchant} isLoading={isLoading} merchantId={merchantId} />
               </motion.div>
             )}
           </AnimatePresence>
@@ -1152,44 +1171,66 @@ function StatsTab({ merchant, isLoading }: { merchant: Merchant | null; isLoadin
 // Renewal Tab — Subscription & Payment
 // ============================================================
 
-function RenewalTab({ merchant, isLoading }: { merchant: Merchant | null; isLoading: boolean }) {
+function RenewalTab({ merchant, isLoading, merchantId }: { merchant: Merchant | null; isLoading: boolean; merchantId: string }) {
   const queryClient = useQueryClient();
   const [selectedPayment, setSelectedPayment] = useState<string | null>(null);
   const [renewing, setRenewing] = useState(false);
 
-  // Compute subscription status based on createdAt
+  // Compute real subscription status from merchant data
   const getSubscriptionStatus = () => {
-    if (!merchant) return { status: 'unknown', label: 'Inconnu', colorClass: 'text-slate-400', bgClass: 'bg-slate-500/20' };
+    if (!merchant) return { status: 'unknown' as string, label: 'Inconnu', colorClass: 'text-slate-400', bgClass: 'bg-slate-500/20', daysRemaining: 0 };
 
-    const created = new Date(merchant.createdAt);
+    const merchantStatus = merchant.status || 'ACTIVE';
     const now = new Date();
-    const daysSinceCreation = Math.floor((now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24));
 
-    // Simulate a 30-day cycle
-    const daysInCycle = daysSinceCreation % 30;
-    const daysRemaining = 30 - daysInCycle;
+    // If EXPIRED or SUSPENDED
+    if (merchantStatus === 'EXPIRED') {
+      return { status: 'expired', label: 'EXPIRÉ', colorClass: 'text-red-400', bgClass: 'bg-red-500/20', daysRemaining: 0 };
+    }
+    if (merchantStatus === 'SUSPENDED') {
+      return { status: 'suspended', label: 'SUSPENDU', colorClass: 'text-red-400', bgClass: 'bg-red-500/20', daysRemaining: 0 };
+    }
+    if (merchantStatus === 'PENDING') {
+      return { status: 'pending', label: 'EN ATTENTE', colorClass: 'text-amber-400', bgClass: 'bg-amber-500/20', daysRemaining: 0 };
+    }
+
+    // ACTIVE - calculate days remaining from subscriptionEnd
+    if (merchant.subscriptionEnd) {
+      const endDate = new Date(merchant.subscriptionEnd);
+      const diffMs = endDate.getTime() - now.getTime();
+      const daysRemaining = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+
+      if (diffMs <= 0) {
+        return { status: 'expired', label: 'EXPIRÉ', colorClass: 'text-red-400', bgClass: 'bg-red-500/20', daysRemaining: 0 };
+      }
+      if (daysRemaining <= 5) {
+        return { status: 'expiring', label: 'EXPIRE BIENTÔT', colorClass: 'text-amber-400', bgClass: 'bg-amber-500/20', daysRemaining };
+      }
+      return { status: 'active', label: 'ACTIF', colorClass: 'text-emerald-400', bgClass: 'bg-emerald-500/20', daysRemaining };
+    }
+
+    // No subscriptionEnd set - use createdAt as fallback with 30-day cycle
+    const created = new Date(merchant.createdAt);
+    const daysSinceCreation = Math.floor((now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24));
+    const daysRemaining = Math.max(0, 30 - (daysSinceCreation % 30));
 
     if (daysRemaining <= 5) {
-      return {
-        status: 'expiring',
-        label: 'Expire bientôt',
-        colorClass: 'text-amber-400',
-        bgClass: 'bg-amber-500/20',
-        daysRemaining,
-      };
+      return { status: 'expiring', label: 'EXPIRE BIENTÔT', colorClass: 'text-amber-400', bgClass: 'bg-amber-500/20', daysRemaining };
     }
-    return {
-      status: 'active',
-      label: 'Actif',
-      colorClass: 'text-emerald-400',
-      bgClass: 'bg-emerald-500/20',
-      daysRemaining,
-    };
+    return { status: 'active', label: 'ACTIF', colorClass: 'text-emerald-400', bgClass: 'bg-emerald-500/20', daysRemaining };
   };
 
   const subStatus = getSubscriptionStatus();
 
+  const formatSubscriptionDate = (dateStr: string | null) => {
+    if (!dateStr) return '—';
+    return new Date(dateStr).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
+  };
+
   const getNextBillingDate = () => {
+    if (merchant?.subscriptionEnd) {
+      return formatSubscriptionDate(merchant.subscriptionEnd);
+    }
     if (!merchant) return '—';
     const created = new Date(merchant.createdAt);
     const now = new Date();
@@ -1199,23 +1240,45 @@ function RenewalTab({ merchant, isLoading }: { merchant: Merchant | null; isLoad
     return nextBilling.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
   };
 
+  const getPlanLabel = () => {
+    const planType = merchant?.planType || 'FREE';
+    switch (planType) {
+      case 'PREMIUM': return 'Premium';
+      case 'WELCOME_PACK': return 'Pack Bienvenue';
+      default: return 'Gratuit';
+    }
+  };
+
   const handleRenewal = async () => {
     if (!selectedPayment) {
       toast.error('Veuillez choisir une méthode de paiement');
       return;
     }
     setRenewing(true);
-    // Simulate payment processing
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    toast.success('Renouvellement effectué avec succès ! (simulation)');
-    setRenewing(false);
-    setSelectedPayment(null);
-    queryClient.invalidateQueries({ queryKey: ['merchants'] });
+    try {
+      const res = await fetch('/api/merchants/renew', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ merchantId, paymentMethod: selectedPayment }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast.success('Abonnement renouvelé avec succès pour 30 jours !');
+        setSelectedPayment(null);
+        queryClient.invalidateQueries({ queryKey: ['merchants'] });
+      } else {
+        toast.error(json.error || 'Erreur lors du renouvellement');
+      }
+    } catch {
+      toast.error('Erreur de connexion au serveur');
+    } finally {
+      setRenewing(false);
+    }
   };
 
   const paymentMethods = [
     {
-      id: 'orange-money',
+      id: 'orange_money',
       name: 'Orange Money',
       icon: '🟠',
       description: 'Paiement mobile via Orange Money',
@@ -1229,13 +1292,15 @@ function RenewalTab({ merchant, isLoading }: { merchant: Merchant | null; isLoad
       color: 'border-sky-500/30 hover:border-sky-500/60 hover:bg-sky-500/5',
     },
     {
-      id: 'carte',
+      id: 'card',
       name: 'Carte bancaire',
       icon: '💳',
       description: 'Visa, Mastercard via Stripe',
       color: 'border-purple-500/30 hover:border-purple-500/60 hover:bg-purple-500/5',
     },
   ];
+
+  const isDeactivated = subStatus.status === 'expired' || subStatus.status === 'suspended';
 
   if (isLoading) {
     return (
@@ -1249,24 +1314,54 @@ function RenewalTab({ merchant, isLoading }: { merchant: Merchant | null; isLoad
 
   return (
     <div className="space-y-6">
+      {/* Warning card for expired or suspended */}
+      {isDeactivated && (
+        <Card className="border-red-500/30 bg-red-500/5 overflow-hidden relative">
+          <div className="absolute inset-0 bg-gradient-to-br from-red-500/10 via-transparent to-transparent pointer-events-none" />
+          <CardContent className="p-6 relative">
+            <div className="flex items-start gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-red-500/20 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-7 h-7 text-red-400" />
+              </div>
+              <div className="space-y-1 min-w-0">
+                <h3 className="text-lg font-bold text-white">
+                  {subStatus.status === 'expired'
+                    ? 'Abonnement expiré'
+                    : 'Compte suspendu'}
+                </h3>
+                <p className="text-sm text-slate-400">
+                  {subStatus.status === 'expired'
+                    ? 'Votre abonnement a expiré. Votre commerce n\'est plus visible sur les bornes. Renouvelez dès maintenant pour réactiver votre compte.'
+                    : 'Votre compte a été suspendu par un administrateur. Contactez support@terangaflow.app pour plus d\'informations.'}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Subscription Status */}
       <Card
         className={cn(
-          'border overflow-hidden',
-          subStatus.status === 'expiring' ? 'border-amber-500/30 bg-amber-500/5' : 'border-emerald-500/30 bg-emerald-500/5',
+          'border overflow-hidden relative',
+          isDeactivated ? 'border-red-500/30 bg-red-500/5'
+            : subStatus.status === 'expiring' ? 'border-amber-500/30 bg-amber-500/5'
+            : subStatus.status === 'pending' ? 'border-amber-500/30 bg-amber-500/5'
+            : 'border-emerald-500/30 bg-emerald-500/5',
         )}
       >
         <div className={cn(
           'absolute inset-0 bg-gradient-to-br pointer-events-none',
-          subStatus.status === 'expiring'
+          isDeactivated ? 'from-red-500/10 via-transparent to-transparent'
+            : subStatus.status === 'expiring' || subStatus.status === 'pending'
             ? 'from-amber-500/10 via-transparent to-transparent'
             : 'from-emerald-500/10 via-transparent to-transparent',
         )} />
         <CardContent className="p-6 relative">
           <div className="flex items-start gap-4">
             <div className={cn('w-14 h-14 rounded-2xl flex items-center justify-center shrink-0', subStatus.bgClass)}>
-              {subStatus.status === 'expiring' ? (
-                <AlertTriangle className="w-7 h-7 text-amber-400" />
+              {isDeactivated || subStatus.status === 'expiring' || subStatus.status === 'pending' ? (
+                <AlertTriangle className="w-7 h-7" />
               ) : (
                 <Shield className="w-7 h-7 text-emerald-400" />
               )}
@@ -1274,24 +1369,38 @@ function RenewalTab({ merchant, isLoading }: { merchant: Merchant | null; isLoad
             <div className="space-y-1 min-w-0">
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
                 Abonnement
-                <Badge className={cn('text-xs', subStatus.bgClass, subStatus.colorClass)}>
+                <Badge className={cn('text-xs font-semibold', subStatus.bgClass, subStatus.colorClass)}>
                   {subStatus.label}
                 </Badge>
               </h3>
               <p className="text-sm text-slate-400">
-                {subStatus.status === 'expiring'
+                {isDeactivated
+                  ? subStatus.status === 'expired'
+                    ? 'Renouvelez votre abonnement pour retrouver l\'accès à toutes les fonctionnalités.'
+                    : 'Votre compte nécessite une intervention administrative.'
+                  : subStatus.status === 'expiring'
                   ? `Votre abonnement expire dans ${subStatus.daysRemaining} jour(s). Renouvelez pour rester visible.`
-                  : `Votre abonnement est actif. Prochain renouvellement automatique dans ${subStatus.daysRemaining} jour(s).`}
+                  : subStatus.status === 'pending'
+                  ? 'Votre compte est en attente de validation par un administrateur.'
+                  : `Votre abonnement est actif. Expire dans ${subStatus.daysRemaining} jour(s).`}
               </p>
-              <div className="flex items-center gap-4 mt-2">
+              <div className="flex items-center gap-4 mt-2 flex-wrap">
                 <div className="flex items-center gap-1.5">
                   <CreditCard className="w-3.5 h-3.5 text-slate-500" />
-                  <span className="text-xs text-slate-400">Plan Marketplace</span>
+                  <span className="text-xs text-slate-400">Plan {getPlanLabel()}</span>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <CalendarClock className="w-3.5 h-3.5 text-slate-500" />
-                  <span className="text-xs text-slate-400">Prochain paiement : {getNextBillingDate()}</span>
-                </div>
+                {merchant?.subscriptionEnd && (
+                  <div className="flex items-center gap-1.5">
+                    <CalendarClock className="w-3.5 h-3.5 text-slate-500" />
+                    <span className="text-xs text-slate-400">Fin : {formatSubscriptionDate(merchant.subscriptionEnd)}</span>
+                  </div>
+                )}
+                {merchant?.subscriptionStart && (
+                  <div className="flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-slate-500" />
+                    <span className="text-xs text-slate-400">Début : {formatSubscriptionDate(merchant.subscriptionStart)}</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -1308,7 +1417,7 @@ function RenewalTab({ merchant, isLoading }: { merchant: Merchant | null; isLoad
         </Card>
         <Card className="border-slate-800 bg-slate-900">
           <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground font-medium">Prochain paiement</p>
+            <p className="text-xs text-muted-foreground font-medium">Fin d&apos;abonnement</p>
             <p className="text-lg font-bold text-sky-400 mt-1">{getNextBillingDate()}</p>
           </CardContent>
         </Card>
@@ -1317,76 +1426,78 @@ function RenewalTab({ merchant, isLoading }: { merchant: Merchant | null; isLoad
             <p className="text-xs text-muted-foreground font-medium">Jours restants</p>
             <p className={cn(
               'text-2xl font-bold tabular-nums mt-1',
-              subStatus.daysRemaining !== undefined && subStatus.daysRemaining <= 5
-                ? 'text-amber-400'
+              isDeactivated ? 'text-red-400'
+                : subStatus.daysRemaining <= 5 ? 'text-amber-400'
                 : 'text-emerald-400',
             )}>
-              {subStatus.daysRemaining ?? '—'}
+              {subStatus.daysRemaining}
             </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Payment Method Selection */}
-      <Card className="border-slate-800 bg-slate-900">
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <CreditCard className="w-4 h-4 text-emerald-400" />
-            Renouveler maintenant
-          </CardTitle>
-          <CardDescription className="text-slate-400">
-            Choisissez votre méthode de paiement préférée
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {paymentMethods.map((method) => (
-              <button
-                type="button"
-                key={method.id}
-                onClick={() => setSelectedPayment(method.id === selectedPayment ? null : method.id)}
-                className={cn(
-                  'flex flex-col items-center gap-3 p-4 rounded-xl border transition-all text-center',
-                  selectedPayment === method.id
-                    ? method.color
-                    : 'border-slate-700 hover:border-slate-600 bg-slate-800/50',
-                )}
-              >
-                <span className="text-2xl">{method.icon}</span>
-                <div>
-                  <p className="text-sm font-medium text-white">{method.name}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">{method.description}</p>
-                </div>
-                {selectedPayment === method.id && (
-                  <div className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center">
-                    <CheckCircle2 className="w-3 h-3 text-white" />
+      {/* Payment Method Selection — hidden for suspended accounts */}
+      {subStatus.status !== 'suspended' && (
+        <Card className="border-slate-800 bg-slate-900">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <CreditCard className="w-4 h-4 text-emerald-400" />
+              Renouveler maintenant
+            </CardTitle>
+            <CardDescription className="text-slate-400">
+              Choisissez votre méthode de paiement préférée
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {paymentMethods.map((method) => (
+                <button
+                  type="button"
+                  key={method.id}
+                  onClick={() => setSelectedPayment(method.id === selectedPayment ? null : method.id)}
+                  className={cn(
+                    'flex flex-col items-center gap-3 p-4 rounded-xl border transition-all text-center',
+                    selectedPayment === method.id
+                      ? method.color
+                      : 'border-slate-700 hover:border-slate-600 bg-slate-800/50',
+                  )}
+                >
+                  <span className="text-2xl">{method.icon}</span>
+                  <div>
+                    <p className="text-sm font-medium text-white">{method.name}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">{method.description}</p>
                   </div>
-                )}
-              </button>
-            ))}
-          </div>
+                  {selectedPayment === method.id && (
+                    <div className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center">
+                      <CheckCircle2 className="w-3 h-3 text-white" />
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
 
-          <div className="flex justify-end pt-2">
-            <Button
-              onClick={handleRenewal}
-              disabled={!selectedPayment || renewing}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 min-w-[180px]"
-            >
-              {renewing ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Traitement...
-                </>
-              ) : (
-                <>
-                  <CreditCard className="w-4 h-4" />
-                  Payer 5 000 FCFA
-                </>
-              )}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+            <div className="flex justify-end pt-2">
+              <Button
+                onClick={handleRenewal}
+                disabled={!selectedPayment || renewing}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 min-w-[180px]"
+              >
+                {renewing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Traitement...
+                  </>
+                ) : (
+                  <>
+                    <CreditCard className="w-4 h-4" />
+                    Payer 5 000 FCFA
+                  </>
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* History placeholder */}
       <Card className="border-slate-800 bg-slate-900">
