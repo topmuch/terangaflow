@@ -2,6 +2,7 @@
 //
 // State machine transition endpoint.
 // Validates the transition, updates the trip, logs it, and dispatches notifications.
+// REQUIRES AUTH + tenant isolation.
 //
 
 import { NextResponse } from "next/server";
@@ -10,6 +11,7 @@ import { db } from "@/lib/db";
 import { tripTransitionSchema } from "@/lib/validations/schemas";
 import { validateTransition } from "@/lib/tripStateMachine";
 import { dispatchNotifications, type DispatchContext } from "@/lib/notificationDispatcher";
+import { requireAuth, verifyStationAccess } from "@/lib/api-auth";
 
 const bodySchema = tripTransitionSchema.omit({ tripId: true });
 
@@ -20,6 +22,10 @@ export async function POST(
   const { tripId } = await params;
 
   try {
+    // ─── AUTH: Verify authentication + tenant ───────────────────────────────
+    const auth = await requireAuth();
+    if (!auth.success) return auth.error;
+
     // ─── Parse & validate body ────────────────────────────────────────────────
     let body: unknown;
     try {
@@ -56,6 +62,10 @@ export async function POST(
     }
 
     const stationId = trip.line.stationId;
+
+    // ─── TENANT ISOLATION: Verify station belongs to user's tenant ────────────
+    const accessError = await verifyStationAccess(stationId, auth.user.tenantId);
+    if (accessError) return accessError;
 
     // ─── Validate state machine transition ────────────────────────────────────
     const validation = validateTransition(trip.status, toStatus);
@@ -103,7 +113,7 @@ export async function POST(
         stationId,
         fromStatus: trip.status,
         toStatus,
-        triggeredBy: "system",
+        triggeredBy: auth.user.id,
         reason: reason ?? null,
       },
     });
@@ -121,7 +131,7 @@ export async function POST(
       fromStatus: trip.status,
       toStatus,
       delayMinutes,
-      triggeredBy: "system",
+      triggeredBy: auth.user.id,
       reason: reason,
     };
 

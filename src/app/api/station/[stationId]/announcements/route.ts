@@ -2,6 +2,7 @@
 //
 // GET  — Fetch announcements for a station (optional ?status=pending filter)
 // POST — Complete or fail an announcement (action: "complete" | "fail")
+// REQUIRES AUTH + tenant isolation.
 //
 
 import { NextResponse } from "next/server";
@@ -9,26 +10,26 @@ import type { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { completeAnnouncement, failAnnouncement } from "@/lib/notificationDispatcher";
 import { z } from "zod";
+import { requireAuth, verifyStationAccess } from "@/lib/api-auth";
 
 // ─── GET ────────────────────────────────────────────────────────────────────────
 
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ stationId: string }> }
 ): Promise<NextResponse> {
   const { stationId } = await params;
 
-  try {
-    const { searchParams } = new URL(request.url);
-    const statusFilter = searchParams.get("status");
+  const auth = await requireAuth();
+  if (!auth.success) return auth.error;
 
+  const accessError = await verifyStationAccess(stationId, auth.user.tenantId);
+  if (accessError) return accessError;
+
+  try {
     const where: Record<string, unknown> = {
       stationId,
     };
-
-    if (statusFilter) {
-      where.status = statusFilter;
-    }
 
     const announcements = await db.announcementQueue.findMany({
       where,
@@ -56,8 +57,16 @@ const announcementActionSchema = z.object({
 
 export async function POST(
   request: NextRequest,
-  _params: { params: Promise<{ stationId: string }> }
+  { params }: { params: Promise<{ stationId: string }> }
 ): Promise<NextResponse> {
+  const { stationId } = await params;
+
+  const auth = await requireAuth();
+  if (!auth.success) return auth.error;
+
+  const accessError = await verifyStationAccess(stationId, auth.user.tenantId);
+  if (accessError) return accessError;
+
   try {
     let body: unknown;
     try {

@@ -2,12 +2,14 @@
 //
 // GET  — Fetch all notification rules for a station (active, ordered by priority desc)
 // POST — Create a new notification rule
+// REQUIRES AUTH + tenant isolation.
 //
 
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { createNotificationRuleSchema } from "@/lib/validations/schemas";
+import { requireAuth, verifyStationAccess } from "@/lib/api-auth";
 
 // ─── GET ────────────────────────────────────────────────────────────────────────
 
@@ -16,6 +18,12 @@ export async function GET(
   { params }: { params: Promise<{ stationId: string }> }
 ): Promise<NextResponse> {
   const { stationId } = await params;
+
+  const auth = await requireAuth();
+  if (!auth.success) return auth.error;
+
+  const accessError = await verifyStationAccess(stationId, auth.user.tenantId);
+  if (accessError) return accessError;
 
   try {
     const rules = await db.notificationRule.findMany({
@@ -43,6 +51,12 @@ export async function POST(
   { params }: { params: Promise<{ stationId: string }> }
 ): Promise<NextResponse> {
   const { stationId } = await params;
+
+  const auth = await requireAuth();
+  if (!auth.success) return auth.error;
+
+  const accessError = await verifyStationAccess(stationId, auth.user.tenantId);
+  if (accessError) return accessError;
 
   try {
     let body: unknown;

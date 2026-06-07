@@ -87,27 +87,27 @@ export async function GET(
     orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
   });
 
-  // ─── Ticker messages (mock for now, will be dynamic in later phases) ──────
-  const tickerMessages: TickerMessage[] = [
-    {
-      id: "ticker-1",
-      text: "Bienvenue à la Gare Centrale de Dakar — TerangaFlow, l'intelligence des gares.",
-      type: "info",
-      displayOrder: 1,
-    },
-    {
-      id: "ticker-2",
-      text: "Retrouvez les horaires en temps réel sur votre téléphone : scannez le QR code.",
-      type: "info",
-      displayOrder: 2,
-    },
-    {
-      id: "ticker-3",
-      text: "Boutique Nouvelles Frontières : -20% sur tous les accessoires de voyage ce week-end !",
-      type: "ad",
-      displayOrder: 3,
-    },
-  ];
+  // ─── Ticker messages from database ─────────────────────────────────────────
+  const tickerRecords = await db.tickerMessage.findMany({
+    where: { stationId: station.id, isActive: true, deletedAt: null },
+    select: { id: true, text: true, type: true, displayOrder: true },
+    orderBy: { displayOrder: "asc" },
+  });
+
+  const tickerMessages: TickerMessage[] = tickerRecords.map((t) => ({
+    id: t.id,
+    text: t.text,
+    type: t.type as TickerMessage["type"],
+    displayOrder: t.displayOrder,
+  }));
+
+  // Fallback if no ticker messages exist
+  if (tickerMessages.length === 0) {
+    tickerMessages.push(
+      { id: "ticker-default-1", text: `Bienvenue à ${station.name} — TerangaFlow, l'intelligence des gares.`, type: "info", displayOrder: 1 },
+      { id: "ticker-default-2", text: "Retrouvez les horaires en temps réel sur votre téléphone : scannez le QR code.", type: "info", displayOrder: 2 }
+    );
+  }
 
   // ─── Response ────────────────────────────────────────────────────────────
   return NextResponse.json({
