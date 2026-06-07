@@ -29,5 +29,5 @@ ENV NODE_ENV=production
 # Expose port
 EXPOSE 3000
 
-# Run db push + seed + start server
-CMD ["sh", "-c", "bunx prisma db push --accept-data-loss 2>/dev/null; bun run db:seed; bun run start"]
+# Run db push + start server
+CMD ["sh", "-c", "bunx prisma db push --accept-data-loss 2>/dev/null; bun run start"]
