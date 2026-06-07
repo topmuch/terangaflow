@@ -194,29 +194,27 @@ function SidebarNav({ role, stationId }: { role: string; stationId: string | nul
         </SidebarGroupContent>
       </SidebarGroup>
 
-      {stationId && (
-        <SidebarGroup>
-          <SidebarGroupLabel>Ma Gare</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {filterByRole(STATION_NAV).map((item) => (
-                <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={isActive(item.href)}
-                    tooltip={item.title}
-                  >
-                    <a href={resolveHref(item.href)}>
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                    </a>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-      )}
+      <SidebarGroup>
+        <SidebarGroupLabel>Ma Gare</SidebarGroupLabel>
+        <SidebarGroupContent>
+          <SidebarMenu>
+            {filterByRole(STATION_NAV).map((item) => (
+              <SidebarMenuItem key={item.href}>
+                <SidebarMenuButton
+                  asChild
+                  isActive={isActive(item.href)}
+                  tooltip={item.title}
+                >
+                  <a href={resolveHref(item.href)}>
+                    <item.icon className="h-4 w-4" />
+                    <span>{item.title}</span>
+                  </a>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
     </SidebarContent>
   );
 }
