@@ -6,8 +6,10 @@ import { getToken } from "next-auth/jwt";
 const PUBLIC_PATHS = [
   "/",
   "/login",
+  "/display",          // Public kiosk display pages
   "/api/auth",
   "/api/public",
+  "/api/departures",    // Public departures API
   "/_next",
   "/favicon.ico",
   "/logo.svg",

@@ -63,3 +63,45 @@ Stage Summary:
   - src/app/page.tsx (landing page)
   - src/components/providers.tsx (SessionProvider + ThemeProvider)
   - prisma/seed.ts
+
+---
+Task ID: 2
+Agent: Main Orchestrator
+Task: Phase 2 — Public Display Kiosk / Real-Time Departure Board
+
+Work Log:
+- Created shared types in src/types/signage.ts (TripStatus enum, DepartureItem, StationInfo, DeparturesResponse, TickerMessage)
+- Built API route GET /api/departures/[stationId] with Prisma queries (station + trips with line relations)
+- API returns typed DeparturesResponse with station info, sorted departures, ticker messages
+- API filters trips within ±2-12h window, excludes soft-deleted records
+- Created useRealTimeClock hook (updates every second via rAF, Intl.DateTimeFormat fr-FR, timezone-aware)
+- Created useKioskMode hook (Wake Lock API, Fullscreen API, cursor-none, visibility change recovery)
+- Created useDeparturesPolling hook (30s interval, immediate first fetch, cleanup on unmount)
+- Built SignageHeader component (brand, station info, live clock, connection status, fullscreen toggle)
+- Built DeparturesTable component (5-column grid, urgent <10min highlight with pulse animation, status badges, platform info, countdown display)
+- Built Ticker component (Framer Motion infinite horizontal scroll, message type icons)
+- Built SignageFooter component (powered-by, wake-lock status, encryption badge, last-updated time, kiosk toggle)
+- Built DisplayPage at /display/[stationId] (loading skeleton, 404 state, all 4 components composed)
+- Used useSyncExternalStore for online/offline detection (lint-compliant)
+- Updated middleware.ts to allow /display and /api/departures as public routes
+- Fixed lint error: replaced useState+useEffect for online detection with useSyncExternalStore
+- Re-seeded database with fresh trip timestamps for verification
+- All lint checks pass
+- Browser verification: display page loads with all departures, clock ticks, ticker scrolls, kiosk toggle works
+
+Stage Summary:
+- Complete real-time kiosk display working end-to-end
+- Public access: /display/[stationId] and /api/departures/[stationId] require no auth
+- API returns 8 departures with typed TripStatus (SCHEDULED, BOARDING, DELAYED, DEPARTED, CANCELLED, ARRIVED)
+- Files created:
+  - src/types/signage.ts
+  - src/app/api/departures/[stationId]/route.ts
+  - src/hooks/useRealTimeClock.ts
+  - src/hooks/useKioskMode.ts
+  - src/hooks/useDeparturesPolling.ts
+  - src/components/signage/Header.tsx
+  - src/components/signage/DeparturesTable.tsx
+  - src/components/signage/Ticker.tsx
+  - src/components/signage/Footer.tsx
+  - src/app/display/[stationId]/page.tsx
+  - src/middleware.ts (updated)
