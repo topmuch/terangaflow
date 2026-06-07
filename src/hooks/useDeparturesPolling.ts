@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import type { DeparturesResponse, DepartureItem } from "@/types/signage";
+import type { DeparturesResponse, DepartureItem, MerchantItem } from "@/types/signage";
 
 interface DeparturesPollingState {
   departures: DepartureItem[];
   tickerMessages: DeparturesResponse["tickerMessages"];
+  merchants: MerchantItem[];
   stationName: string;
   stationCode: string;
   isLoading: boolean;
@@ -24,6 +25,7 @@ export function useDeparturesPolling(
   stationId: string
 ): DeparturesPollingState {
   const [departures, setDepartures] = useState<DepartureItem[]>([]);
+  const [merchants, setMerchants] = useState<MerchantItem[]>([]);
   const [tickerMessages, setTickerMessages] = useState<
     DeparturesResponse["tickerMessages"]
   >([]);
@@ -58,6 +60,7 @@ export function useDeparturesPolling(
       );
 
       setDepartures(sorted);
+      setMerchants(data.merchants ?? []);
       setTickerMessages(data.tickerMessages);
       setStationName(data.station.name);
       setStationCode(data.station.code);
@@ -98,6 +101,7 @@ export function useDeparturesPolling(
 
   return {
     departures,
+    merchants,
     tickerMessages,
     stationName,
     stationCode,

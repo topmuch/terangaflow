@@ -19,6 +19,7 @@ import {
   MessageSquare,
   Upload,
   Volume2,
+  Store,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -126,6 +127,12 @@ const STATION_NAV: NavItem[] = [
     title: "Notifications",
     href: "/station/_SID_/notifications",
     icon: Volume2,
+    roles: ["SUPERADMIN", "STATION_MANAGER"],
+  },
+  {
+    title: "Partenaires",
+    href: "/station/_SID_/partners",
+    icon: Store,
     roles: ["SUPERADMIN", "STATION_MANAGER"],
   },
 ];

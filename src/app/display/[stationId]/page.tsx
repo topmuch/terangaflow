@@ -11,6 +11,7 @@ import { useDeparturesPolling } from "@/hooks/useDeparturesPolling";
 
 import { SignageHeader } from "@/components/signage/Header";
 import { DeparturesTable } from "@/components/signage/DeparturesTable";
+import { ServicesSection } from "@/components/signage/ServicesSection";
 import { Ticker } from "@/components/signage/Ticker";
 import { SignageFooter } from "@/components/signage/Footer";
 
@@ -111,12 +112,15 @@ export default function DisplayPage() {
         isOnline={isOnline}
       />
 
-      {/* Main departures table */}
-      <DeparturesTable
-        departures={polling.departures}
-        isLoading={polling.isLoading}
-        error={polling.error}
-      />
+      {/* Main departures table + services */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <DeparturesTable
+          departures={polling.departures}
+          isLoading={polling.isLoading}
+          error={polling.error}
+        />
+        <ServicesSection merchants={polling.merchants} />
+      </div>
 
       {/* Scrolling ticker messages */}
       <Ticker messages={polling.tickerMessages} />

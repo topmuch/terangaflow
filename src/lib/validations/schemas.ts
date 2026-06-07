@@ -113,3 +113,63 @@ export const createNotificationRuleSchema = z.object({
 });
 
 export type CreateNotificationRuleInput = z.infer<typeof createNotificationRuleSchema>;
+
+// ─── Merchant ───────────────────────────────────────────────────────────────────
+
+export const merchantCategoryEnum = z.enum([
+  "restaurant",
+  "boutique",
+  "transport",
+  "service",
+  "banque",
+  "telecom",
+  "autre",
+]);
+
+export const createMerchantSchema = z.object({
+  name: z
+    .string()
+    .min(2, "Le nom doit contenir au moins 2 caractères")
+    .max(120, "Le nom ne peut pas dépasser 120 caractères"),
+  description: z.string().max(500).optional(),
+  category: merchantCategoryEnum.default("autre"),
+  whatsapp: z
+    .string()
+    .regex(/^[+]?[\d\s\-]{8,15}$/, "Numéro WhatsApp invalide")
+    .optional()
+    .or(z.literal("")),
+  mapsUrl: z
+    .string()
+    .url("URL Google Maps invalide")
+    .optional()
+    .or(z.literal("")),
+  promoText: z.string().max(200).optional(),
+  promoExpiry: z.string().datetime().optional(),
+  logo: z.string().max(500).optional(),
+  isActive: z.boolean().default(true),
+  displayOrder: z.number().int().min(0).default(0),
+});
+
+export const updateMerchantSchema = z.object({
+  name: z.string().min(2).max(120).optional(),
+  description: z.string().max(500).optional(),
+  category: merchantCategoryEnum.optional(),
+  whatsapp: z
+    .string()
+    .regex(/^[+]?[\d\s\-]{8,15}$/, "Numéro WhatsApp invalide")
+    .optional()
+    .or(z.literal("")),
+  mapsUrl: z
+    .string()
+    .url("URL Google Maps invalide")
+    .optional()
+    .or(z.literal("")),
+  promoText: z.string().max(200).optional(),
+  promoExpiry: z.string().datetime().optional().nullable(),
+  logo: z.string().max(500).optional(),
+  isActive: z.boolean().optional(),
+  displayOrder: z.number().int().min(0).optional(),
+});
+
+export type CreateMerchantInput = z.infer<typeof createMerchantSchema>;
+export type UpdateMerchantInput = z.infer<typeof updateMerchantSchema>;

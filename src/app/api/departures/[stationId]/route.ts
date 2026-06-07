@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { db } from "@/lib/db";
-import type { DeparturesResponse, DepartureItem, TickerMessage } from "@/types/signage";
+import type { DeparturesResponse, DepartureItem, TickerMessage, MerchantItem } from "@/types/signage";
 import { TRIP_STATUS } from "@/types/signage";
 
 export async function GET(
@@ -72,6 +72,21 @@ export async function GET(
     };
   });
 
+  // ─── Fetch active merchants ───────────────────────────────────────────
+  const merchants = await db.merchant.findMany({
+    where: { stationId: station.id, isActive: true, deletedAt: null },
+    select: {
+      id: true,
+      name: true,
+      category: true,
+      description: true,
+      whatsapp: true,
+      mapsUrl: true,
+      promoText: true,
+    },
+    orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
+  });
+
   // ─── Ticker messages (mock for now, will be dynamic in later phases) ──────
   const tickerMessages: TickerMessage[] = [
     {
@@ -105,6 +120,7 @@ export async function GET(
       timezone: station.timezone,
     },
     departures,
+    merchants: merchants as MerchantItem[],
     updatedAt: new Date().toISOString(),
     tickerMessages,
   });

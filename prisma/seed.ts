@@ -141,7 +141,90 @@ async function main() {
   }
   console.log("✅ Sample trips created");
 
-  // ─── 8. Create Billing Subscription ────────────────────────────────────────
+  // ─── 8. Create Sample Merchants ────────────────────────────────────────
+  const merchantsData = [
+    {
+      name: "Boutique Nouvelles Frontières",
+      description: "Accessoires de voyage, bagagerie et cadeaux du Sénégal",
+      category: "boutique",
+      whatsapp: "+221 77 123 45 67",
+      mapsUrl: "https://maps.google.com/?q=14.6937,-17.4441",
+      promoText: "-20% sur tous les accessoires de voyage ce week-end !",
+      promoExpiry: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+      displayOrder: 0,
+    },
+    {
+      name: "Restaurant Le Teranga",
+      description: "Cuisine sénégalaise authentique — thiéboudienne, yassa, maffé",
+      category: "restaurant",
+      whatsapp: "+221 76 987 65 43",
+      mapsUrl: "https://maps.google.com/?q=14.6940,-17.4435",
+      promoText: null,
+      displayOrder: 1,
+    },
+    {
+      name: "Orange Digital Center",
+      description: "Recharge mobile, internet et transfert d'argent",
+      category: "telecom",
+      whatsapp: "+221 78 555 00 11",
+      mapsUrl: null,
+      promoText: "Gratuit : 500 Mo offerts pour tout nouveau client",
+      promoExpiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+      displayOrder: 2,
+    },
+    {
+      name: "Diaspora Express",
+      description: "Service de livraison de colis vers la France, Italie et Espagne",
+      category: "service",
+      whatsapp: "+221 77 333 22 11",
+      mapsUrl: "https://maps.google.com/?q=14.6935,-17.4445",
+      promoText: null,
+      displayOrder: 3,
+    },
+    {
+      name: "Banque Atlantique — Agence Gare",
+      description: "Retrait, dépôt, change et transfert Western Union",
+      category: "banque",
+      whatsapp: null,
+      mapsUrl: "https://maps.google.com/?q=14.6938,-17.4443",
+      promoText: null,
+      displayOrder: 4,
+    },
+    {
+      name: "Taxi Gare Dakar",
+      description: "Station de taxis partagés vers toute la région de Dakar",
+      category: "transport",
+      whatsapp: "+221 76 444 33 22",
+      mapsUrl: null,
+      promoText: "Trajet Plateau → Gare : 500 FCFA seulement",
+      promoExpiry: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 days
+      displayOrder: 5,
+    },
+  ];
+
+  for (const merchantData of merchantsData) {
+    const existing = await db.merchant.findFirst({
+      where: {
+        stationId: station.id,
+        name: merchantData.name,
+        deletedAt: null,
+      },
+    });
+    if (!existing) {
+      await db.merchant.create({
+        data: {
+          ...merchantData,
+          stationId: station.id,
+          isActive: true,
+        },
+      });
+      console.log(`  ✅ Merchant created: ${merchantData.name}`);
+    } else {
+      console.log(`  ✅ Merchant already exists: ${merchantData.name}`);
+    }
+  }
+
+  // ─── 9. Create Billing Subscription ────────────────────────────────────────
   const existingSub = await db.billingSubscription.findFirst({
     where: { tenantId: tenant.id },
   });

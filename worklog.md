@@ -194,3 +194,95 @@ Stage Summary:
   - prisma/schema.prisma (updated: 10 models)
   - src/lib/validations/schemas.ts (updated)
   - src/app/(dashboard)/layout.tsx (updated: Volume2 nav item)
+
+---
+Task ID: 5
+Agent: Main Orchestrator
+Task: Phase 4 — Merchant Profiles, Landing Pages, QR Codes, Kiosk Services
+
+Work Log:
+- Added Merchant model to Prisma schema (13 fields: name, description, category, whatsapp, mapsUrl, promoText, promoExpiry, logo, isActive, displayOrder, stationId, timestamps, soft-delete)
+- Added Station hasMany Merchant relation
+- Installed qrcode + @types/qrcode for client-side QR code generation
+- Created validation schemas: createMerchantSchema, updateMerchantSchema, merchantCategoryEnum (7 categories)
+- Created 4 API routes:
+  - GET/POST /api/station/[stationId]/merchants — dashboard CRUD list
+  - GET/PATCH/DELETE /api/station/[stationId]/merchants/[merchantId] — single merchant CRUD
+  - GET /api/public/merchants/[merchantId] — public landing page data (no auth)
+- Updated middleware.ts: added /p to public paths for merchant landing pages
+- Created QrCodeDisplay component: canvas-based QR generation with download PNG + copy buttons
+- Created MerchantForm component: full form with name, description, category select, WhatsApp, Maps URL, promo, display order, active toggle
+- Created public merchant landing page at /p/[stationId]/[merchantId]:
+  - Mobile-first white design, amber-500 header with station branding
+  - Merchant hero: emoji avatar, name, category badge, description card
+  - WhatsApp CTA (green, pre-filled message with station name)
+  - Google Maps CTA (outline, external link)
+  - Promo section: gradient amber card with "Offre spéciale" label
+  - Station info card, TerangaFlow footer
+  - 404 page: clean "Partenaire introuvable" with branding
+  - SEO: dynamic document.title
+- Created ServicesSection kiosk component:
+  - "Services & Partenaires" section with Store icon
+  - Responsive grid: 2/3/4 columns
+  - Glass-like cards with category icons (Lucide), truncated names
+  - Promo badge + WhatsApp indicator per merchant
+  - Cards link to /p/[stationId]/[merchantId]
+  - Staggered Framer Motion entrance animations
+- Updated departures API to include merchants in response
+- Updated DeparturesResponse type with merchants array
+- Updated useDeparturesPolling hook to return merchants
+- Integrated ServicesSection into kiosk display page (between departures and ticker)
+- Created partners dashboard page at /station/[stationId]/partners:
+  - Two-column layout: left (merchant table), right (sticky QR preview)
+  - Desktop: Table with columns Catégorie, Nom, WhatsApp (masked), Promo, Statut, Actions
+  - Mobile: Card view with inline Switch + action buttons
+  - QR Preview panel: shows merchant name, category, QR code, public URL, promo info
+  - Mobile QR dialog for QR preview on small screens
+  - Create/Edit dialog with MerchantForm
+  - Delete AlertDialog with soft-delete message
+  - Toggle active/inactive via PATCH
+- Updated sidebar: added "Partenaires" with Store icon in station nav
+- Seeded 6 sample merchants:
+  - Boutique Nouvelles Frontières (boutique, WhatsApp, Maps, promo -20%)
+  - Restaurant Le Teranga (restaurant, WhatsApp, Maps)
+  - Orange Digital Center (telecom, WhatsApp, promo 500 Mo)
+  - Diaspora Express (service, WhatsApp, Maps)
+  - Banque Atlantique — Agence Gare (banque, Maps only)
+  - Taxi Gare Dakar (transport, WhatsApp, promo 500 FCFA)
+- All lint checks pass (0 errors)
+- Browser verification:
+  - Merchant landing page: renders correctly with header, hero, WhatsApp/Maps CTAs, promo, footer
+  - WhatsApp URL verified: `https://wa.me/221771234567?text=Bonjour, je vous contacte depuis TerangaFlow - Gare Gare Centrale de Dakar`
+  - 404 page: "Partenaire introuvable" with clean branding
+  - Kiosk display: shows "Services & Partenaires" with all 6 merchants in responsive grid
+  - Partners dashboard: table with 6 merchants, masked WhatsApp, promo badges, QR preview panel
+  - Sidebar: "Partenaires" link visible in both main nav and station nav
+
+Stage Summary:
+- Complete merchant/partner system with public landing pages
+- QR codes generated client-side with download/copy actions
+- Mobile-first public pages accessible at /p/[stationId]/[merchantId]
+- Kiosk display now shows merchant services section
+- Dashboard CRUD with live QR preview
+- All checklist items verified:
+  - [x] Scan QR → opens landing on mobile
+  - [x] WhatsApp button pre-filled and functional
+  - [x] Disabled/inactive merchant → clean 404
+- Files created:
+  - prisma/schema.prisma (updated: 11 models with Merchant)
+  - src/lib/validations/schemas.ts (updated: merchant schemas)
+  - src/app/api/station/[stationId]/merchants/route.ts (CRUD list)
+  - src/app/api/station/[stationId]/merchants/[merchantId]/route.ts (CRUD single)
+  - src/app/api/public/merchants/[merchantId]/route.ts (public data)
+  - src/middleware.ts (updated: /p public path)
+  - src/components/dashboard/QrCodeDisplay.tsx (QR component)
+  - src/components/dashboard/MerchantForm.tsx (form component)
+  - src/app/p/[stationId]/[merchantId]/page.tsx (landing page)
+  - src/components/signage/ServicesSection.tsx (kiosk services)
+  - src/app/display/[stationId]/page.tsx (updated: integrated ServicesSection)
+  - src/types/signage.ts (updated: MerchantItem type)
+  - src/hooks/useDeparturesPolling.ts (updated: merchants state)
+  - src/app/api/departures/[stationId]/route.ts (updated: merchants query)
+  - src/app/(dashboard)/station/[stationId]/partners/page.tsx (dashboard page)
+  - src/app/(dashboard)/layout.tsx (updated: Store nav icon)
+  - prisma/seed.ts (updated: 6 sample merchants)

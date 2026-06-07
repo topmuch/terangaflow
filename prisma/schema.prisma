@@ -67,6 +67,7 @@ model Station {
   users            User[]
   lines            Line[]
   tickers          TickerMessage[]
+  merchants        Merchant[]
   notificationRules NotificationRule[]
   transitionLogs   TransitionLog[]
   announcements    AnnouncementQueue[]
@@ -239,6 +240,33 @@ model AnnouncementQueue {
   @@index([stationId, status])
   @@index([scheduledAt])
   @@index([priority])
+}
+
+// ─── Merchant (partner commerce) ────────────────────────────────────────────────
+
+model Merchant {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  category    String   @default("autre") // restaurant, boutique, transport, service, banque, telecom, autre
+  whatsapp     String?  // phone number for WhatsApp CTA
+  mapsUrl      String?  // Google Maps link
+  promoText    String?  // optional promotional message
+  promoExpiry  DateTime?
+  logo        String?  // logo URL
+  isActive    Boolean  @default(true)
+  displayOrder Int      @default(0)
+  stationId   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  station     Station  @relation(fields: [stationId], references: [id], onDelete: Cascade)
+
+  @@index([stationId])
+  @@index([isActive])
+  @@index([category])
+  @@index([displayOrder])
 }
 
 // ─── Ticker Message (display banner) ────────────────────────────────────────────

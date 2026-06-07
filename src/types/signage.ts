@@ -84,9 +84,20 @@ export interface StationInfo {
   timezone: string;
 }
 
+export interface MerchantItem {
+  id: string;
+  name: string;
+  category: string;
+  description: string | null;
+  whatsapp: string | null;
+  mapsUrl: string | null;
+  promoText: string | null;
+}
+
 export interface DeparturesResponse {
   station: StationInfo;
   departures: DepartureItem[];
+  merchants: MerchantItem[];
   updatedAt: string;
   tickerMessages: TickerMessage[];
 }

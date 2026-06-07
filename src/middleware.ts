@@ -7,6 +7,7 @@ const PUBLIC_PATHS = [
   "/",
   "/login",
   "/display",          // Public kiosk display pages
+  "/p",                // Public merchant landing pages
   "/api/auth",
   "/api/public",
   "/api/departures",    // Public departures API
