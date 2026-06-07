@@ -7,215 +7,76 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ─── Enums ────────────────────────────────────────────────────────────────────
+model AdCampaign {
+  id             String         @id @default(cuid())
+  name           String
+  advertiserName String
+  stationId      String
+  targetingSlot  String         @default("insert")
+  priority       Int            @default(0)
+  budgetTotal    Float          @default(0)
+  budgetSpent    Float          @default(0)
+  cpmCost        Float          @default(0)
+  cpcCost        Float          @default(0)
+  maxImpressions Int?
+  status         String         @default("active")
+  startDate      DateTime
+  endDate        DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime
+  deletedAt      DateTime?
+  station        Station        @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  creatives      AdCreative[]
+  impressions    AdImpression[]
 
-enum Role {
-  SUPERADMIN
-  STATION_MANAGER
-  TRANSPORTER
-  MERCHANT
-}
-
-enum SubscriptionStatus {
-  ACTIVE
-  PAST_DUE
-  CANCELLED
-  TRIALING
-  PAUSED
-}
-
-// ─── Tenant (multi-tenant root) ───────────────────────────────────────────────
-
-model Tenant {
-  id        String   @id @default(cuid())
-  name      String
-  slug      String   @unique
-  logo      String?
-  domain    String?  @unique
-  plan      String   @default("free") // free, starter, pro, enterprise
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deletedAt DateTime?
-
-  stations     Station[]
-  users        User[]
-  subscriptions BillingSubscription[]
-
-  @@index([slug])
-  @@index([plan])
-}
-
-// ─── Station ───────────────────────────────────────────────────────────────────
-
-model Station {
-  id        String   @id @default(cuid())
-  name      String
-  code      String   @unique  // e.g. "DSS-01"
-  city      String
-  country   String   @default("SN")
-  address   String?
-  lat       Float?
-  lng       Float?
-  timezone  String   @default("Africa/Dakar")
-  isActive  Boolean  @default(true)
-  tenantId  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deletedAt DateTime?
-
-  tenant           Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  users            User[]
-  lines            Line[]
-  tickers          TickerMessage[]
-  merchants        Merchant[]
-  notificationRules NotificationRule[]
-  transitionLogs   TransitionLog[]
-  announcements    AnnouncementQueue[]
-
-  @@index([tenantId])
-  @@index([code])
-  @@index([isActive])
-  @@index([city])
-}
-
-// ─── User ─────────────────────────────────────────────────────────────────────
-
-model User {
-  id            String   @id @default(cuid())
-  email         String   @unique
-  passwordHash  String
-  name          String
-  phone         String?
-  avatar        String?
-  role          Role     @default(STATION_MANAGER)
-  isActive      Boolean  @default(true)
-  lastLoginAt   DateTime?
-  emailVerified DateTime?
-  tenantId      String
-  stationId     String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  deletedAt     DateTime?
-
-  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  station       Station? @relation(fields: [stationId], references: [id])
-
-  @@index([email])
-  @@index([tenantId])
-  @@index([stationId])
-  @@index([role])
-  @@index([isActive])
-}
-
-// ─── Billing Subscription ─────────────────────────────────────────────────────
-
-model BillingSubscription {
-  id                  String   @id @default(cuid())
-  tenantId            String
-  stripeCustomerId    String?  @unique
-  stripeSubscriptionId String? @unique
-  plan                String   @default("free")
-  status              SubscriptionStatus @default(TRIALING)
-  currentPeriodStart  DateTime?
-  currentPeriodEnd    DateTime?
-  cancelledAt         DateTime?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-
-  tenant              Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-
-  @@index([tenantId])
+  @@index([startDate, endDate])
+  @@index([priority])
+  @@index([targetingSlot])
   @@index([status])
-}
-
-// ─── Line (transport route) ───────────────────────────────────────────────────
-
-model Line {
-  id        String   @id @default(cuid())
-  name      String
-  code      String
-  stationId String
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deletedAt DateTime?
-
-  station   Station  @relation(fields: [stationId], references: [id], onDelete: Cascade)
-  trips     Trip[]
-
   @@index([stationId])
-  @@index([code])
 }
 
-// ─── Trip (departure/arrival) ─────────────────────────────────────────────────
+model AdCreative {
+  id           String         @id @default(cuid())
+  campaignId   String
+  title        String
+  body         String?
+  imageUrl     String?
+  linkUrl      String?
+  ctaText      String         @default("En savoir plus")
+  displayOrder Int            @default(0)
+  isActive     Boolean        @default(true)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime
+  campaign     AdCampaign     @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  impressions  AdImpression[]
 
-model Trip {
-  id              String   @id @default(cuid())
-  lineId          String
-  operatorName    String
-  departureTime   DateTime
-  estimatedArrival DateTime
-  status          String   @default("scheduled") // scheduled, delayed, cancelled, departed, arrived
-  platform        String?
-  notes           String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  deletedAt       DateTime?
-
-  line            Line             @relation(fields: [lineId], references: [id], onDelete: Cascade)
-  transitionLogs  TransitionLog[]
-
-  @@index([lineId])
-  @@index([departureTime])
-  @@index([status])
-}
-
-// ─── Notification Rule (triggers on state transitions) ────────────────────────────
-
-model NotificationRule {
-  id            String   @id @default(cuid())
-  name          String
-  stationId     String
-  triggerFrom   String                           // e.g. "SCHEDULED"
-  triggerTo     String                           // e.g. "BOARDING"
-  channel       String   @default("voice")      // voice, display, push, all
-  template      String                           // message with {destination}, {platform}, {delay}
-  repeatEveryMin Int      @default(0)             // 0 = no repeat; >0 = repeat every N minutes
-  repeatMaxTimes Int      @default(0)             // 0 = unlimited
-  priority      Int      @default(0)             // higher = play first
-  isActive      Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  deletedAt     DateTime?
-
-  station        Station  @relation(fields: [stationId], references: [id], onDelete: Cascade)
-
-  @@index([stationId])
-  @@index([triggerFrom, triggerTo])
+  @@index([displayOrder])
   @@index([isActive])
+  @@index([campaignId])
 }
 
-// ─── Transition Log (audit trail for every state change) ──────────────────────
+model AdImpression {
+  id         String     @id @default(cuid())
+  campaignId String
+  creativeId String
+  stationId  String
+  type       String     @default("impression")
+  slotType   String
+  sessionId  String?
+  userAgent  String?
+  referrer   String?
+  createdAt  DateTime   @default(now())
+  creative   AdCreative @relation(fields: [creativeId], references: [id], onDelete: Cascade)
+  campaign   AdCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
 
-model TransitionLog {
-  id            String   @id @default(cuid())
-  tripId        String
-  stationId     String
-  fromStatus    String
-  toStatus      String
-  triggeredBy   String?                          // userId or "system"
-  reason        String?
-  createdAt     DateTime @default(now())
-
-  trip          Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
-  station       Station  @relation(fields: [stationId], references: [id], onDelete: Cascade)
-
-  @@index([tripId])
-  @@index([stationId])
   @@index([createdAt])
+  @@index([slotType])
+  @@index([type])
+  @@index([stationId])
+  @@index([creativeId])
+  @@index([campaignId])
 }
-
-// ─── Announcement Queue (persistent queue for voice/display) ──────────────────
 
 model AnnouncementQueue {
   id              String    @id @default(cuid())
@@ -224,67 +85,228 @@ model AnnouncementQueue {
   ruleId          String?
   channel         String    @default("voice")
   message         String
-  renderedMessage String?                            // template filled in
+  renderedMessage String?
   priority        Int       @default(0)
-  status          String    @default("pending")      // pending, playing, completed, failed, skipped
+  status          String    @default("pending")
   scheduledAt     DateTime
   retryCount      Int       @default(0)
   maxRetries      Int       @default(3)
   playedAt        DateTime?
   error           String?
   createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  updatedAt       DateTime
+  station         Station   @relation(fields: [stationId], references: [id], onDelete: Cascade)
 
-  station         Station?  @relation(fields: [stationId], references: [id], onDelete: Cascade)
-
-  @@index([stationId, status])
-  @@index([scheduledAt])
   @@index([priority])
+  @@index([scheduledAt])
+  @@index([stationId, status])
 }
 
-// ─── Merchant (partner commerce) ────────────────────────────────────────────────
+model BillingSubscription {
+  id                   String    @id @default(cuid())
+  tenantId             String
+  stripeCustomerId     String?   @unique
+  stripeSubscriptionId String?   @unique
+  plan                 String    @default("free")
+  status               String    @default("TRIALING")
+  currentPeriodStart   DateTime?
+  currentPeriodEnd     DateTime?
+  cancelledAt          DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime
+  tenant               Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([tenantId])
+}
+
+model Line {
+  id        String    @id @default(cuid())
+  name      String
+  code      String
+  stationId String
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime
+  deletedAt DateTime?
+  station   Station   @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  trips     Trip[]
+
+  @@index([code])
+  @@index([stationId])
+}
 
 model Merchant {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  category    String   @default("autre") // restaurant, boutique, transport, service, banque, telecom, autre
-  whatsapp     String?  // phone number for WhatsApp CTA
-  mapsUrl      String?  // Google Maps link
-  promoText    String?  // optional promotional message
+  id           String    @id @default(cuid())
+  name         String
+  description  String?
+  category     String    @default("autre")
+  whatsapp     String?
+  mapsUrl      String?
+  promoText    String?
   promoExpiry  DateTime?
-  logo        String?  // logo URL
-  isActive    Boolean  @default(true)
-  displayOrder Int      @default(0)
-  stationId   String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  deletedAt   DateTime?
+  logo         String?
+  isActive     Boolean   @default(true)
+  displayOrder Int       @default(0)
+  stationId    String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime
+  deletedAt    DateTime?
+  station      Station   @relation(fields: [stationId], references: [id], onDelete: Cascade)
 
-  station     Station  @relation(fields: [stationId], references: [id], onDelete: Cascade)
-
-  @@index([stationId])
-  @@index([isActive])
-  @@index([category])
   @@index([displayOrder])
+  @@index([category])
+  @@index([isActive])
+  @@index([stationId])
 }
 
-// ─── Ticker Message (display banner) ────────────────────────────────────────────
+model NotificationRule {
+  id             String    @id @default(cuid())
+  name           String
+  stationId      String
+  triggerFrom    String
+  triggerTo      String
+  channel        String    @default("voice")
+  template       String
+  repeatEveryMin Int       @default(0)
+  repeatMaxTimes Int       @default(0)
+  priority       Int       @default(0)
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime
+  deletedAt      DateTime?
+  station        Station   @relation(fields: [stationId], references: [id], onDelete: Cascade)
+
+  @@index([isActive])
+  @@index([triggerFrom, triggerTo])
+  @@index([stationId])
+}
+
+model Station {
+  id                String              @id @default(cuid())
+  name              String
+  code              String              @unique
+  city              String
+  country           String              @default("SN")
+  address           String?
+  lat               Float?
+  lng               Float?
+  timezone          String              @default("Africa/Dakar")
+  isActive          Boolean             @default(true)
+  tenantId          String
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime
+  deletedAt         DateTime?
+  adCampaigns        AdCampaign[]
+  announcementQueues AnnouncementQueue[]
+  lines              Line[]
+  merchants          Merchant[]
+  notificationRules  NotificationRule[]
+  tenant             Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tickerMessages     TickerMessage[]
+  transitionLogs     TransitionLog[]
+  users              User[]
+
+  @@index([city])
+  @@index([isActive])
+  @@index([code])
+  @@index([tenantId])
+}
+
+model Tenant {
+  id                  String                @id @default(cuid())
+  name                String
+  slug                String                @unique
+  logo                String?
+  domain              String?               @unique
+  plan                String                @default("free")
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime
+  deletedAt           DateTime?
+  billingSubscriptions BillingSubscription[]
+  stations             Station[]
+  users                User[]
+
+  @@index([plan])
+  @@index([slug])
+}
 
 model TickerMessage {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   text         String
-  type         String   @default("info")  // info, urgent, ad
-  isActive     Boolean  @default(true)
-  displayOrder Int      @default(0)
+  type         String    @default("info")
+  isActive     Boolean   @default(true)
+  displayOrder Int       @default(0)
   stationId    String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime
   deletedAt    DateTime?
+  station      Station   @relation(fields: [stationId], references: [id], onDelete: Cascade)
 
-  station      Station  @relation(fields: [stationId], references: [id], onDelete: Cascade)
-
-  @@index([stationId])
-  @@index([isActive])
   @@index([displayOrder])
+  @@index([isActive])
+  @@index([stationId])
+}
+
+model TransitionLog {
+  id          String   @id @default(cuid())
+  tripId      String
+  stationId   String
+  fromStatus  String
+  toStatus    String
+  triggeredBy String?
+  reason      String?
+  createdAt   DateTime @default(now())
+  station     Station  @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  trip        Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+  @@index([stationId])
+  @@index([tripId])
+}
+
+model Trip {
+  id               String          @id @default(cuid())
+  lineId           String
+  operatorName     String
+  departureTime    DateTime
+  estimatedArrival DateTime
+  status           String          @default("scheduled")
+  platform         String?
+  notes            String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime
+  deletedAt        DateTime?
+  transitionLogs    TransitionLog[]
+  line             Line            @relation(fields: [lineId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([departureTime])
+  @@index([lineId])
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String
+  name          String
+  phone         String?
+  avatar        String?
+  role          String    @default("STATION_MANAGER")
+  isActive      Boolean   @default(true)
+  lastLoginAt   DateTime?
+  emailVerified DateTime?
+  tenantId      String
+  stationId     String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime
+  deletedAt     DateTime?
+  station       Station?  @relation(fields: [stationId], references: [id])
+  tenant        Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([isActive])
+  @@index([role])
+  @@index([stationId])
+  @@index([tenantId])
+  @@index([email])
 }

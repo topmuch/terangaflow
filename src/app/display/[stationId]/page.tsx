@@ -11,6 +11,7 @@ import { useDeparturesPolling } from "@/hooks/useDeparturesPolling";
 
 import { SignageHeader } from "@/components/signage/Header";
 import { DeparturesTable } from "@/components/signage/DeparturesTable";
+import { AdSlot } from "@/components/signage/AdSlot";
 import { ServicesSection } from "@/components/signage/ServicesSection";
 import { Ticker } from "@/components/signage/Ticker";
 import { SignageFooter } from "@/components/signage/Footer";
@@ -112,18 +113,44 @@ export default function DisplayPage() {
         isOnline={isOnline}
       />
 
-      {/* Main departures table + services */}
+      {/* ─── HEADER AD SLOT ─────────────────────────────────────────────── */}
+      <AdSlot
+        stationId={stationId}
+        slotType="header"
+        variant="banner"
+        intervalMs={30000}
+      />
+
+      {/* Main departures table + services + insert ad */}
       <div className="flex-1 flex flex-col overflow-hidden">
         <DeparturesTable
           departures={polling.departures}
           isLoading={polling.isLoading}
           error={polling.error}
         />
+
+        {/* ─── INSERT AD SLOT (between departures and services) ──────────── */}
+        <AdSlot
+          stationId={stationId}
+          slotType="insert"
+          variant="card"
+          intervalMs={30000}
+          className="mx-6 mt-2 max-w-2xl self-center"
+        />
+
         <ServicesSection merchants={polling.merchants} />
       </div>
 
       {/* Scrolling ticker messages */}
       <Ticker messages={polling.tickerMessages} />
+
+      {/* ─── FOOTER AD SLOT ─────────────────────────────────────────────── */}
+      <AdSlot
+        stationId={stationId}
+        slotType="sidebar"
+        variant="footer"
+        intervalMs={35000}
+      />
 
       {/* Footer with status and kiosk controls */}
       <SignageFooter

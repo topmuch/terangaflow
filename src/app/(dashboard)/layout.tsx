@@ -135,6 +135,12 @@ const STATION_NAV: NavItem[] = [
     icon: Store,
     roles: ["SUPERADMIN", "STATION_MANAGER"],
   },
+  {
+    title: "Campagnes pub",
+    href: "/station/_SID_/campaigns",
+    icon: Megaphone,
+    roles: ["SUPERADMIN", "STATION_MANAGER"],
+  },
 ];
 
 const ADMIN_NAV: NavItem[] = [

@@ -11,6 +11,7 @@ const PUBLIC_PATHS = [
   "/api/auth",
   "/api/public",
   "/api/departures",    // Public departures API
+  "/api/ads",           // Public ad serving + tracking API
   "/_next",
   "/favicon.ico",
   "/logo.svg",

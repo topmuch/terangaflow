@@ -173,3 +173,112 @@ export const updateMerchantSchema = z.object({
 
 export type CreateMerchantInput = z.infer<typeof createMerchantSchema>;
 export type UpdateMerchantInput = z.infer<typeof updateMerchantSchema>;
+
+// ─── Ad Campaign ──────────────────────────────────────────────────────────────
+
+export const adSlotTypeEnum = z.enum([
+  "header",
+  "insert",
+  "sidebar",
+  "interstitial",
+]);
+
+export const adCampaignStatusEnum = z.enum([
+  "active",
+  "paused",
+  "completed",
+  "exhausted",
+]);
+
+export const createAdCampaignSchema = z.object({
+  name: z
+    .string()
+    .min(2, "Le nom doit contenir au moins 2 caractères")
+    .max(120),
+  advertiserName: z
+    .string()
+    .min(2, "Le nom de l'annonceur est requis")
+    .max(120),
+  stationId: z.string().min(1, "La gare est requise"),
+  targetingSlot: adSlotTypeEnum.default("insert"),
+  priority: z.number().int().min(0).max(100).default(0),
+  budgetTotal: z.number().min(0).default(0),
+  budgetSpent: z.number().min(0).default(0),
+  cpmCost: z.number().min(0).default(0),
+  cpcCost: z.number().min(0).default(0),
+  maxImpressions: z.number().int().min(1).optional().nullable(),
+  status: adCampaignStatusEnum.default("active"),
+  startDate: z.string().datetime("Format ISO 8601 requis"),
+  endDate: z.string().datetime().optional().nullable(),
+});
+
+export const updateAdCampaignSchema = z.object({
+  name: z.string().min(2).max(120).optional(),
+  advertiserName: z.string().min(2).max(120).optional(),
+  targetingSlot: adSlotTypeEnum.optional(),
+  priority: z.number().int().min(0).max(100).optional(),
+  budgetTotal: z.number().min(0).optional(),
+  cpmCost: z.number().min(0).optional(),
+  cpcCost: z.number().min(0).optional(),
+  maxImpressions: z.number().int().min(1).optional().nullable(),
+  status: adCampaignStatusEnum.optional(),
+  startDate: z.string().datetime().optional(),
+  endDate: z.string().datetime().optional().nullable(),
+});
+
+export type CreateAdCampaignInput = z.infer<typeof createAdCampaignSchema>;
+export type UpdateAdCampaignInput = z.infer<typeof updateAdCampaignSchema>;
+
+// ─── Ad Creative ──────────────────────────────────────────────────────────────
+
+export const createAdCreativeSchema = z.object({
+  campaignId: z.string().min(1, "La campagne est requise"),
+  title: z
+    .string()
+    .min(2, "Le titre doit contenir au moins 2 caractères")
+    .max(200),
+  body: z.string().max(500).optional().nullable(),
+  imageUrl: z.string().max(500).optional().nullable(),
+  linkUrl: z
+    .string()
+    .url("URL invalide")
+    .optional()
+    .nullable()
+    .or(z.literal("")),
+  ctaText: z.string().max(50).default("En savoir plus"),
+  displayOrder: z.number().int().min(0).default(0),
+  isActive: z.boolean().default(true),
+});
+
+export const updateAdCreativeSchema = z.object({
+  title: z.string().min(2).max(200).optional(),
+  body: z.string().max(500).optional().nullable(),
+  imageUrl: z.string().max(500).optional().nullable(),
+  linkUrl: z
+    .string()
+    .url("URL invalide")
+    .optional()
+    .nullable()
+    .or(z.literal("")),
+  ctaText: z.string().max(50).optional(),
+  displayOrder: z.number().int().min(0).optional(),
+  isActive: z.boolean().optional(),
+});
+
+export type CreateAdCreativeInput = z.infer<typeof createAdCreativeSchema>;
+export type UpdateAdCreativeInput = z.infer<typeof updateAdCreativeSchema>;
+
+// ─── Ad Impression Tracking ──────────────────────────────────────────────────
+
+export const trackImpressionSchema = z.object({
+  campaignId: z.string().min(1),
+  creativeId: z.string().min(1),
+  stationId: z.string().min(1),
+  type: z.enum(["impression", "click"]).default("impression"),
+  slotType: adSlotTypeEnum,
+  sessionId: z.string().optional().nullable(),
+  userAgent: z.string().optional().nullable(),
+  referrer: z.string().optional().nullable(),
+});
+
+export type TrackImpressionInput = z.infer<typeof trackImpressionSchema>;

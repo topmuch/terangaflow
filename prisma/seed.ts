@@ -248,6 +248,117 @@ async function main() {
   console.log("   Manager:    manager@terangaflow.app / manager123");
   console.log("   Transport:  transporteur@terangaflow.app / transport123");
   console.log("");
+
+  // ─── 10. Create Sample Ad Campaigns ──────────────────────────────────────
+  const adCampaignsData = [
+    {
+      name: "Promo Orange — Ramadan 2025",
+      advertiserName: "Orange Sénégal",
+      targetingSlot: "header",
+      priority: 80,
+      budgetTotal: 500000, // 500K FCFA
+      budgetSpent: 0,
+      cpmCost: 150, // 150 FCFA per 1000 impressions
+      cpcCost: 50,  // 50 FCFA per click
+      maxImpressions: 100000,
+      status: "active",
+      startDate: new Date(),
+      endDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000), // 60 days
+      creatives: [
+        {
+          title: "Offre spéciale Ramadan — Double recharge",
+          body: "Rechargez 5000 FCFA, recevez 5000 FCFA offerts. Valable jusqu'à fin du Ramadan.",
+          imageUrl: null,
+          linkUrl: "https://www.orange.sn",
+          ctaText: "Profiter de l'offre",
+          displayOrder: 0,
+        },
+      ],
+    },
+    {
+      name: "Diaspora Express — Livraison colis",
+      advertiserName: "Diaspora Express",
+      targetingSlot: "insert",
+      priority: 60,
+      budgetTotal: 300000,
+      budgetSpent: 0,
+      cpmCost: 100,
+      cpcCost: 35,
+      maxImpressions: 50000,
+      status: "active",
+      startDate: new Date(),
+      endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+      creatives: [
+        {
+          title: "Envoyez vos colis en Europe — Tarifs réduits",
+          body: "Livraison Dakar → Paris en 72h. Première livraison à 15 000 FCFA seulement.",
+          imageUrl: null,
+          linkUrl: null,
+          ctaText: "En savoir plus",
+          displayOrder: 0,
+        },
+      ],
+    },
+    {
+      name: "Banque Atlantique — Ouverture de compte",
+      advertiserName: "Banque Atlantique",
+      targetingSlot: "sidebar",
+      priority: 40,
+      budgetTotal: 200000,
+      budgetSpent: 0,
+      cpmCost: 80,
+      cpcCost: 25,
+      maxImpressions: null,
+      status: "active",
+      startDate: new Date(),
+      endDate: null, // no end date
+      creatives: [
+        {
+          title: "Ouvrez votre compte en 5 minutes",
+          body: "0 frais de dossier. Carte Visa offerte. Transfert Western Union disponible.",
+          imageUrl: null,
+          linkUrl: null,
+          ctaText: "En savoir plus",
+          displayOrder: 0,
+        },
+      ],
+    },
+  ];
+
+  for (const campaignData of adCampaignsData) {
+    const existing = await db.adCampaign.findFirst({
+      where: {
+        stationId: station.id,
+        name: campaignData.name,
+        deletedAt: null,
+      },
+    });
+
+    if (!existing) {
+      const { creatives, ...campaignFields } = campaignData;
+
+      const campaign = await db.adCampaign.create({
+        data: {
+          ...campaignFields,
+          stationId: station.id,
+        },
+      });
+
+      for (const creativeData of creatives) {
+        await db.adCreative.create({
+          data: {
+            ...creativeData,
+            campaignId: campaign.id,
+            isActive: true,
+          },
+        });
+      }
+
+      console.log(`  ✅ Ad campaign created: ${campaign.name} (${creatives.length} créatif(s))`);
+    } else {
+      console.log(`  ✅ Ad campaign already exists: ${campaignData.name}`);
+    }
+  }
 }
 
 main()

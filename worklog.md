@@ -286,3 +286,88 @@ Stage Summary:
   - src/app/(dashboard)/station/[stationId]/partners/page.tsx (dashboard page)
   - src/app/(dashboard)/layout.tsx (updated: Store nav icon)
   - prisma/seed.ts (updated: 6 sample merchants)
+
+---
+Task ID: 6
+Agent: Main Orchestrator
+Task: Phase 5 — Ad Engine (Moteur de diffusion pub, slots kiosk, tracking impressions, billing CPM/CPC)
+
+Work Log:
+- Added 3 new Prisma models: AdCampaign (14 fields with budget/billing), AdCreative (9 fields), AdImpression (10 fields for tracking)
+- Added Station hasMany AdCampaign relation, campaign→creatives→impressions chain
+- Created validation schemas: createAdCampaignSchema, updateAdCampaignSchema, createAdCreativeSchema, updateAdCreativeSchema, trackImpressionSchema
+- Created src/lib/adEngine.ts (ad selection engine):
+  - selectCreative(): weighted random algorithm using priority × budgetRemaining × fairRandomization
+  - getEligibleCreatives(): queries active campaigns for station+slot with budget/date filtering
+  - serveAd(): main entry point — interstitial cooldown (1h/session), auto-exhaustion detection
+  - recordImpression(): logs event to DB, calculates CPM/CPC cost, auto-marks exhausted campaigns
+  - getCampaignStats(): impressions, clicks, CTR, budget utilization
+  - Session-based interstitial dedup via in-memory Map (60min cooldown)
+- Created GET /api/ads (public endpoint): returns best matching creative with base64url tracking token
+- Created POST /api/ads/track (public endpoint): records impressions/clicks, updates campaign budget, supports both explicit fields and token decode
+- Updated middleware.ts: added /api/ads to public paths
+- Created AdSlot component (src/components/signage/AdSlot.tsx):
+  - 4 layout variants: banner (header), card (insert), compact (sidebar), footer
+  - Auto-rotation via setInterval (30s default)
+  - sendBeacon tracking for non-blocking impression logging (fallback: fetch keepalive)
+  - "Sponsorisé" badge on real ads (hidden for fallback)
+  - TerangaFlow self-promo fallback when no eligible campaigns
+  - prefers-reduced-motion support via useSyncExternalStore
+  - Session ID via sessionStorage for dedup
+  - AnimatePresence for smooth transitions between ads
+- Integrated 3 AdSlot instances into kiosk display page:
+  - Header: banner variant between header and departures
+  - Insert: card variant between departures and services
+  - Footer: footer variant between ticker and footer
+- Created dashboard campaigns page at /station/[stationId]/campaigns:
+  - Campaign list with expand/collapse detail panels
+  - Stats summary cards (active campaigns, total impressions, budget spent, creative count)
+  - Budget utilization progress bars (color-coded: emerald/amber/red)
+  - Per-campaign stats (impressions, clicks, CTR, budget %)
+  - Creative management: grid view with add/edit/delete
+  - Create campaign dialog (name, advertiser, slot, priority, budget, CPM, CPC, dates)
+  - Create/edit creative dialog with live preview
+  - Pause/resume toggle, soft-delete with AlertDialog
+  - View mode toggle (table/grid)
+- Created 4 campaign management API routes:
+  - GET/POST /api/station/[stationId]/campaigns
+  - GET/PATCH/DELETE /api/station/[stationId]/campaigns/[campaignId]
+  - GET/POST /api/station/[stationId]/campaigns/[campaignId]/creatives
+  - PATCH/DELETE /api/station/[stationId]/campaigns/[campaignId]/creatives/[creativeId]
+- Updated sidebar: added "Campagnes pub" with Megaphone icon in station nav
+- Seeded 3 sample campaigns:
+  - Promo Orange — Ramadan 2025 (header, priority 80, 500K FCFA budget, CPM 150)
+  - Diaspora Express — Livraison colis (insert, priority 60, 300K FCFA budget, CPM 100)
+  - Banque Atlantique — Ouverture de compte (sidebar, priority 40, 200K FCFA budget, CPM 80)
+- All lint checks pass (0 errors)
+- Browser verification:
+  - Kiosk display: all 3 ad slots render with correct campaigns and "Sponsorisé" badges
+  - API tests: header/insert/sidebar slots return real ads, interstitial returns fallback
+  - Tracking: POST /api/ads/track records impressions, updates budget (budgetSpent: 0.15 per impression)
+
+Stage Summary:
+- Complete ad engine with weighted selection, CPM/CPC billing, and real-time tracking
+- All 3 slot positions functional in kiosk display (header banner, insert card, footer strip)
+- Non-blocking sendBeacon tracking with automatic budget deduction
+- Campaign auto-exhaustion when budget or max impressions reached
+- Dashboard CRUD with live creative preview and stats
+- All checklist items verified:
+  - [x] Slot header/insert/sidebar fonctionnels
+  - [x] Tracking enregistre impression sans bloquer UI
+  - [x] Campagne épuisée → fallback automatique
+- Files created:
+  - prisma/schema.prisma (updated: 14 models)
+  - src/lib/validations/schemas.ts (updated: ad schemas)
+  - src/lib/adEngine.ts (selection engine + tracking)
+  - src/app/api/ads/route.ts (GET public ads endpoint)
+  - src/app/api/ads/track/route.ts (POST tracking endpoint)
+  - src/components/signage/AdSlot.tsx (4 variants, auto-rotation, sendBeacon)
+  - src/app/display/[stationId]/page.tsx (updated: 3 AdSlot instances)
+  - src/app/api/station/[stationId]/campaigns/route.ts (GET/POST campaigns)
+  - src/app/api/station/[stationId]/campaigns/[campaignId]/route.ts (GET/PATCH/DELETE)
+  - src/app/api/station/[stationId]/campaigns/[campaignId]/creatives/route.ts (GET/POST)
+  - src/app/api/station/[stationId]/campaigns/[campaignId]/creatives/[creativeId]/route.ts (PATCH/DELETE)
+  - src/app/(dashboard)/station/[stationId]/campaigns/page.tsx (dashboard UI)
+  - src/middleware.ts (updated: /api/ads public path)
+  - src/app/(dashboard)/layout.tsx (updated: Campagnes pub nav)
+  - prisma/seed.ts (updated: 3 ad campaigns)
