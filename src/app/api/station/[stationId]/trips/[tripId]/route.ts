@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { requireAuth, verifyStationAccess } from "@/lib/api-auth";
+import { validateTransition } from "@/lib/tripStateMachine";
 import { revalidatePath } from "next/cache";
 
 export async function PATCH(
@@ -17,7 +18,15 @@ export async function PATCH(
   if (accessError) return accessError;
 
   try {
-    const body = await request.json();
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json(
+        { error: "Corps de requête JSON invalide." },
+        { status: 400 }
+      );
+    }
 
     // Verify the trip belongs to a line within this station
     const existingTrip = await db.trip.findFirst({
@@ -38,23 +47,50 @@ export async function PATCH(
 
     // Build update data from allowed fields only
     const updateData: Record<string, unknown> = {};
-    if (typeof body.status === "string") updateData.status = body.status;
     if (typeof body.platform === "string") updateData.platform = body.platform;
     if (typeof body.notes === "string") updateData.notes = body.notes;
-    if (typeof body.operatorName === "string")
-      updateData.operatorName = body.operatorName;
-    if (typeof body.departureTime === "string") {
-      const parsed = new Date(body.departureTime);
+    if (typeof (body as Record<string, unknown>).operatorName === "string")
+      updateData.operatorName = (body as Record<string, unknown>).operatorName;
+    if (typeof (body as Record<string, unknown>).departureTime === "string") {
+      const parsed = new Date((body as Record<string, unknown>).departureTime as string);
       if (!isNaN(parsed.getTime())) {
         updateData.departureTime = parsed;
       }
     }
-    if (typeof body.estimatedArrival === "string") {
-      const parsed = new Date(body.estimatedArrival);
+    if (typeof (body as Record<string, unknown>).estimatedArrival === "string") {
+      const parsed = new Date((body as Record<string, unknown>).estimatedArrival as string);
       if (!isNaN(parsed.getTime())) {
         updateData.estimatedArrival = parsed;
       }
     }
+
+    // ─── STATUS CHANGE: validate via state machine ────────────────────────
+    if (typeof (body as Record<string, unknown>).status === "string") {
+      const newStatus = ((body as Record<string, unknown>).status as string).toUpperCase();
+      const validation = validateTransition(existingTrip.status, newStatus);
+
+      if (!validation.valid) {
+        return NextResponse.json(
+          { error: validation.error ?? "Transition interdite." },
+          { status: 409 }
+        );
+      }
+
+      updateData.status = newStatus;
+
+      // Log the transition
+      await db.transitionLog.create({
+        data: {
+          tripId,
+          stationId,
+          fromStatus: existingTrip.status,
+          toStatus: newStatus,
+          triggeredBy: auth.user.id,
+        },
+      });
+    }
+
+    updateData.updatedAt = new Date();
 
     const updatedTrip = await db.trip.update({
       where: { id: tripId },

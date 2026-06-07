@@ -51,7 +51,7 @@ interface TripItem {
 interface TripTableProps {
   stationId: string;
   trips: TripItem[];
-  onUpdateStatus?: (tripId: string, status: string) => void;
+  onUpdateStatus?: (tripId: string, status: string, reason?: string) => void;
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────────

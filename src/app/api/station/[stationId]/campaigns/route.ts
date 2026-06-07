@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getToken } from "next-auth/jwt";
 import { db } from "@/lib/db";
 import { createAdCampaignSchema } from "@/lib/validations/schemas";
+import { requireAuth, verifyStationAccess } from "@/lib/api-auth";
 
 /**
  * GET /api/station/[stationId]/campaigns
  * List all ad campaigns for a station.
+ * REQUIRES AUTH + tenant isolation.
  */
 export async function GET(
   _request: NextRequest,
@@ -13,6 +14,13 @@ export async function GET(
 ) {
   try {
     const { stationId } = await params;
+
+    // ─── AUTH + TENANT ISOLATION ──────────────────────────────────────────
+    const auth = await requireAuth();
+    if (!auth.success) return auth.error;
+
+    const accessError = await verifyStationAccess(stationId, auth.user.tenantId);
+    if (accessError) return accessError;
 
     const campaigns = await db.adCampaign.findMany({
       where: {
@@ -65,22 +73,22 @@ export async function GET(
 /**
  * POST /api/station/[stationId]/campaigns
  * Create a new ad campaign.
+ * REQUIRES AUTH + tenant isolation.
  */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ stationId: string }> }
 ) {
   try {
-    // Auth check
-    const token = await getToken({
-      req: request,
-      secret: process.env.NEXTAUTH_SECRET,
-    });
-    if (!token) {
-      return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-    }
-
     const { stationId } = await params;
+
+    // ─── AUTH + TENANT ISOLATION ──────────────────────────────────────────
+    const auth = await requireAuth();
+    if (!auth.success) return auth.error;
+
+    const accessError = await verifyStationAccess(stationId, auth.user.tenantId);
+    if (accessError) return accessError;
+
     const body = await request.json();
 
     // Validate

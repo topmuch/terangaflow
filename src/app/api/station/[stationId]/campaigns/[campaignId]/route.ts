@@ -1,22 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getToken } from "next-auth/jwt";
 import { db } from "@/lib/db";
 import { updateAdCampaignSchema } from "@/lib/validations/schemas";
 import { getCampaignStats } from "@/lib/adEngine";
+import { requireAuth, verifyStationAccess } from "@/lib/api-auth";
 
 /**
  * GET /api/station/[stationId]/campaigns/[campaignId]
  * Get a single campaign with stats.
+ * REQUIRES AUTH + tenant isolation.
  */
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ stationId: string; campaignId: string }> }
 ) {
   try {
-    const { campaignId } = await params;
+    const { stationId, campaignId } = await params;
 
-    const campaign = await db.adCampaign.findUnique({
-      where: { id: campaignId },
+    // ─── AUTH + TENANT ISOLATION ──────────────────────────────────────────
+    const auth = await requireAuth();
+    if (!auth.success) return auth.error;
+
+    const accessError = await verifyStationAccess(stationId, auth.user.tenantId);
+    if (accessError) return accessError;
+
+    const campaign = await db.adCampaign.findFirst({
+      where: { id: campaignId, stationId },
       include: {
         creatives: {
           orderBy: { displayOrder: "asc" },
@@ -72,21 +80,22 @@ export async function GET(
 /**
  * PATCH /api/station/[stationId]/campaigns/[campaignId]
  * Update a campaign.
+ * REQUIRES AUTH + tenant isolation.
  */
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ stationId: string; campaignId: string }> }
 ) {
   try {
-    const token = await getToken({
-      req: request,
-      secret: process.env.NEXTAUTH_SECRET,
-    });
-    if (!token) {
-      return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-    }
+    const { stationId, campaignId } = await params;
 
-    const { campaignId } = await params;
+    // ─── AUTH + TENANT ISOLATION ──────────────────────────────────────────
+    const auth = await requireAuth();
+    if (!auth.success) return auth.error;
+
+    const accessError = await verifyStationAccess(stationId, auth.user.tenantId);
+    if (accessError) return accessError;
+
     const body = await request.json();
 
     // Validate
@@ -109,6 +118,14 @@ export async function PATCH(
       updateData.endDate = null;
     }
 
+    // Verify campaign belongs to station
+    const existing = await db.adCampaign.findFirst({
+      where: { id: campaignId, stationId },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Campagne introuvable" }, { status: 404 });
+    }
+
     const campaign = await db.adCampaign.update({
       where: { id: campaignId },
       data: updateData,
@@ -124,21 +141,29 @@ export async function PATCH(
 /**
  * DELETE /api/station/[stationId]/campaigns/[campaignId]
  * Soft-delete a campaign.
+ * REQUIRES AUTH + tenant isolation.
  */
 export async function DELETE(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ stationId: string; campaignId: string }> }
 ) {
   try {
-    const token = await getToken({
-      req: request,
-      secret: process.env.NEXTAUTH_SECRET,
-    });
-    if (!token) {
-      return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-    }
+    const { stationId, campaignId } = await params;
 
-    const { campaignId } = await params;
+    // ─── AUTH + TENANT ISOLATION ──────────────────────────────────────────
+    const auth = await requireAuth();
+    if (!auth.success) return auth.error;
+
+    const accessError = await verifyStationAccess(stationId, auth.user.tenantId);
+    if (accessError) return accessError;
+
+    // Verify campaign belongs to station
+    const existing = await db.adCampaign.findFirst({
+      where: { id: campaignId, stationId },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Campagne introuvable" }, { status: 404 });
+    }
 
     await db.adCampaign.update({
       where: { id: campaignId },

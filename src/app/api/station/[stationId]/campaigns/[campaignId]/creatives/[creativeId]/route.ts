@@ -1,26 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getToken } from "next-auth/jwt";
 import { db } from "@/lib/db";
 import { updateAdCreativeSchema } from "@/lib/validations/schemas";
+import { requireAuth, verifyStationAccess } from "@/lib/api-auth";
 
 /**
  * PATCH /api/station/[stationId]/campaigns/[campaignId]/creatives/[creativeId]
  * Update a creative.
+ * REQUIRES AUTH + tenant isolation.
  */
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ stationId: string; campaignId: string; creativeId: string }> }
 ) {
   try {
-    const token = await getToken({
-      req: request,
-      secret: process.env.NEXTAUTH_SECRET,
+    const { stationId, campaignId, creativeId } = await params;
+
+    // ─── AUTH + TENANT ISOLATION ──────────────────────────────────────────
+    const auth = await requireAuth();
+    if (!auth.success) return auth.error;
+
+    const accessError = await verifyStationAccess(stationId, auth.user.tenantId);
+    if (accessError) return accessError;
+
+    // Verify campaign belongs to station
+    const campaign = await db.adCampaign.findFirst({
+      where: { id: campaignId, stationId },
     });
-    if (!token) {
-      return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+    if (!campaign) {
+      return NextResponse.json({ error: "Campagne introuvable" }, { status: 404 });
     }
 
-    const { creativeId } = await params;
     const body = await request.json();
 
     const parsed = updateAdCreativeSchema.safeParse(body);
@@ -60,21 +69,29 @@ export async function PATCH(
 /**
  * DELETE /api/station/[stationId]/campaigns/[campaignId]/creatives/[creativeId]
  * Delete a creative.
+ * REQUIRES AUTH + tenant isolation.
  */
 export async function DELETE(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ stationId: string; campaignId: string; creativeId: string }> }
 ) {
   try {
-    const token = await getToken({
-      req: request,
-      secret: process.env.NEXTAUTH_SECRET,
-    });
-    if (!token) {
-      return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-    }
+    const { stationId, campaignId, creativeId } = await params;
 
-    const { creativeId } = await params;
+    // ─── AUTH + TENANT ISOLATION ──────────────────────────────────────────
+    const auth = await requireAuth();
+    if (!auth.success) return auth.error;
+
+    const accessError = await verifyStationAccess(stationId, auth.user.tenantId);
+    if (accessError) return accessError;
+
+    // Verify campaign belongs to station
+    const campaign = await db.adCampaign.findFirst({
+      where: { id: campaignId, stationId },
+    });
+    if (!campaign) {
+      return NextResponse.json({ error: "Campagne introuvable" }, { status: 404 });
+    }
 
     await db.adCreative.delete({
       where: { id: creativeId },
