@@ -66,6 +66,7 @@ model Station {
   tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   users     User[]
   lines     Line[]
+  tickers   TickerMessage[]
 
   @@index([tenantId])
   @@index([code])
@@ -162,4 +163,24 @@ model Trip {
   @@index([lineId])
   @@index([departureTime])
   @@index([status])
+}
+
+// ─── Ticker Message (display banner) ────────────────────────────────────────────
+
+model TickerMessage {
+  id           String   @id @default(cuid())
+  text         String
+  type         String   @default("info")  // info, urgent, ad
+  isActive     Boolean  @default(true)
+  displayOrder Int      @default(0)
+  stationId    String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  deletedAt    DateTime?
+
+  station      Station  @relation(fields: [stationId], references: [id], onDelete: Cascade)
+
+  @@index([stationId])
+  @@index([isActive])
+  @@index([displayOrder])
 }

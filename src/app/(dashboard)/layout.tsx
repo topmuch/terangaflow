@@ -14,6 +14,10 @@ import {
   LogOut,
   ChevronDown,
   Building2,
+  Route,
+  Clock,
+  MessageSquare,
+  Upload,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -92,6 +96,33 @@ const MAIN_NAV: NavItem[] = [
   },
 ];
 
+const STATION_NAV: NavItem[] = [
+  {
+    title: "Lignes",
+    href: "/station/_SID_/lines",
+    icon: Route,
+    roles: ["SUPERADMIN", "STATION_MANAGER", "TRANSPORTER"],
+  },
+  {
+    title: "Trajets",
+    href: "/station/_SID_/trips",
+    icon: Clock,
+    roles: ["SUPERADMIN", "STATION_MANAGER", "TRANSPORTER"],
+  },
+  {
+    title: "Messages Ticker",
+    href: "/station/_SID_/tickers",
+    icon: MessageSquare,
+    roles: ["SUPERADMIN", "STATION_MANAGER"],
+  },
+  {
+    title: "Import CSV",
+    href: "/station/_SID_/trips/import",
+    icon: Upload,
+    roles: ["SUPERADMIN", "STATION_MANAGER", "TRANSPORTER"],
+  },
+];
+
 const ADMIN_NAV: NavItem[] = [
   {
     title: "Abonnements",
@@ -131,16 +162,22 @@ function SidebarBrand() {
 
 // ─── Sidebar Nav Menu ────────────────────────────────────────────────────────
 
-function SidebarNav({ role }: { role: string }) {
+function SidebarNav({ role, stationId }: { role: string; stationId: string | null }) {
   const pathname = usePathname();
 
   function filterByRole(items: NavItem[]): NavItem[] {
     return items.filter((item) => item.roles.includes(role));
   }
 
+  // Replace _SID_ placeholder with actual stationId
+  function resolveHref(href: string): string {
+    return stationId ? href.replace("_SID_", stationId) : "/dashboard";
+  }
+
   function isActive(href: string): boolean {
-    if (href === "/dashboard") return pathname === "/dashboard";
-    return pathname.startsWith(href);
+    const resolved = resolveHref(href);
+    if (resolved === "/dashboard") return pathname === "/dashboard";
+    return pathname.startsWith(resolved);
   }
 
   return (
@@ -166,6 +203,30 @@ function SidebarNav({ role }: { role: string }) {
           </SidebarMenu>
         </SidebarGroupContent>
       </SidebarGroup>
+
+      {stationId && (
+        <SidebarGroup>
+          <SidebarGroupLabel>Ma Gare</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {filterByRole(STATION_NAV).map((item) => (
+                <SidebarMenuItem key={item.href}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={isActive(item.href)}
+                    tooltip={item.title}
+                  >
+                    <a href={resolveHref(item.href)}>
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </a>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      )}
 
       {(role === "SUPERADMIN" || role === "STATION_MANAGER") && (
         <SidebarGroup>
@@ -297,7 +358,7 @@ export default function DashboardLayout({
     <SidebarProvider>
       <Sidebar collapsible="icon" variant="sidebar">
         <SidebarBrand />
-        <SidebarNav role={role} />
+        <SidebarNav role={role} stationId={session?.user?.stationId ?? null} />
         <SidebarUserFooter />
         <SidebarRail />
       </Sidebar>
