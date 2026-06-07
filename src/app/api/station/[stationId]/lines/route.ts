@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { requireAuth, verifyStationAccess } from "@/lib/api-auth";
+import { z } from "zod";
 import { createLineSchema } from "@/lib/validations/schemas";
 import { revalidatePath } from "next/cache";
 
@@ -21,6 +22,11 @@ export async function GET(
     const lines = await db.line.findMany({
       where: { stationId, deletedAt: null },
       orderBy: { code: "asc" },
+      include: {
+        _count: {
+          select: { trips: { where: { deletedAt: null } } },
+        },
+      },
     });
 
     return NextResponse.json(lines);
@@ -70,12 +76,13 @@ export async function POST(
       },
     });
 
-    revalidatePath(`/dashboard/${stationId}`);
+    revalidatePath(`/station/${stationId}/lines`);
     return NextResponse.json(line, { status: 201 });
   } catch (error) {
-    if (error instanceof Error && error.name === "ZodError") {
+    if (error instanceof z.ZodError) {
+      const firstError = error.issues[0];
       return NextResponse.json(
-        { error: "Données invalides.", details: error.message },
+        { error: firstError?.message ?? "Données invalides." },
         { status: 400 }
       );
     }

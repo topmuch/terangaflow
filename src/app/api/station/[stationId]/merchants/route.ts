@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { requireAuth, verifyStationAccess } from "@/lib/api-auth";
+import { z } from "zod";
 import { createMerchantSchema } from "@/lib/validations/schemas";
 import { revalidatePath } from "next/cache";
 
@@ -73,9 +74,10 @@ export async function POST(
     revalidatePath(`/station/${stationId}/partners`);
     return NextResponse.json(merchant, { status: 201 });
   } catch (error) {
-    if (error instanceof Error && error.name === "ZodError") {
+    if (error instanceof z.ZodError) {
+      const firstError = error.issues[0];
       return NextResponse.json(
-        { error: "Données invalides.", details: error.message },
+        { error: firstError?.message ?? "Données invalides." },
         { status: 400 }
       );
     }

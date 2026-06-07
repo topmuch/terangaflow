@@ -246,7 +246,7 @@ export default function StationTickersPage() {
       const url = isEditing
         ? `/api/station/${stationId}/tickers/${editingTicker.id}`
         : `/api/station/${stationId}/tickers`;
-      const method = isEditing ? "PUT" : "POST";
+      const method = isEditing ? "PATCH" : "POST";
 
       const res = await fetch(url, {
         method,

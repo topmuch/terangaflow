@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireAuth, verifyStationAccess } from "@/lib/api-auth";
 import { updateTickerSchema } from "@/lib/validations/schemas";
@@ -40,12 +41,13 @@ export async function PATCH(
       data: validated,
     });
 
-    revalidatePath(`/dashboard/${stationId}`);
+    revalidatePath(`/station/${stationId}/tickers`);
     return NextResponse.json(updatedTicker);
   } catch (error) {
-    if (error instanceof Error && error.name === "ZodError") {
+    if (error instanceof z.ZodError) {
+      const firstError = error.issues[0];
       return NextResponse.json(
-        { error: "Données invalides.", details: error.message },
+        { error: firstError?.message ?? "Données invalides." },
         { status: 400 }
       );
     }
@@ -86,7 +88,7 @@ export async function DELETE(
       data: { deletedAt: new Date() },
     });
 
-    revalidatePath(`/dashboard/${stationId}`);
+    revalidatePath(`/station/${stationId}/tickers`);
     return NextResponse.json({ message: "Message supprimé avec succès." });
   } catch (error) {
     console.error("Erreur lors de la suppression du message:", error);

@@ -27,9 +27,17 @@ export async function GET(
   if (accessError) return accessError;
 
   try {
+    const { searchParams } = new URL(request.url);
+    const statusParam = searchParams.get("status");
+
     const where: Record<string, unknown> = {
       stationId,
     };
+
+    // Apply status filter if provided
+    if (statusParam) {
+      where.status = statusParam;
+    }
 
     const announcements = await db.announcementQueue.findMany({
       where,

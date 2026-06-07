@@ -43,7 +43,7 @@ export async function PATCH(
       data: updateData,
     });
 
-    revalidatePath(`/dashboard/${stationId}`);
+    revalidatePath(`/station/${stationId}/lines`);
     return NextResponse.json(updatedLine);
   } catch (error) {
     console.error("Erreur lors de la mise à jour de la ligne:", error);
@@ -83,7 +83,7 @@ export async function DELETE(
       data: { deletedAt: new Date() },
     });
 
-    revalidatePath(`/dashboard/${stationId}`);
+    revalidatePath(`/station/${stationId}/lines`);
     return NextResponse.json({ message: "Ligne supprimée avec succès." });
   } catch (error) {
     console.error("Erreur lors de la suppression de la ligne:", error);
