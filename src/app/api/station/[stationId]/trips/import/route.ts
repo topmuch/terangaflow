@@ -19,7 +19,7 @@ export async function POST(
 
   try {
     const formData = await request.formData();
-    const file = formData.get("file");
+    const file = formData.get("file") || formData.get("csv");
 
     if (!file || !(file instanceof File)) {
       return NextResponse.json(
@@ -120,7 +120,7 @@ export async function POST(
       }
     }
 
-    revalidatePath(`/dashboard/${stationId}`);
+    revalidatePath(`/station/${stationId}/trips`);
     return NextResponse.json({
       message: `Import terminé : ${created} trajets créés, ${skipped} ignorés.`,
       created,

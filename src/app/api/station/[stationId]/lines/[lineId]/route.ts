@@ -36,7 +36,6 @@ export async function PATCH(
     if (typeof body.name === "string") updateData.name = body.name;
     if (typeof body.code === "string") updateData.code = body.code;
     if (typeof body.isActive === "boolean") updateData.isActive = body.isActive;
-    if (body.deletedAt !== undefined) updateData.deletedAt = body.deletedAt;
 
     const updatedLine = await db.line.update({
       where: { id: lineId },

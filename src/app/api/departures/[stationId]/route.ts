@@ -12,7 +12,7 @@ export async function GET(
 
   // ─── Fetch station ────────────────────────────────────────────────────────
   const station = await db.station.findFirst({
-    where: { id: stationId, isActive: true },
+    where: { id: stationId, isActive: true, deletedAt: null },
   });
 
   if (!station) {

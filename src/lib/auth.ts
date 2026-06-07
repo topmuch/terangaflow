@@ -46,8 +46,16 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
+        const email = String(credentials.email).trim().toLowerCase();
+        const password = String(credentials.password);
+
+        // Basic email format validation
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          return null;
+        }
+
         const user = await db.user.findUnique({
-          where: { email: credentials.email as string },
+          where: { email },
           select: {
             id: true,
             email: true,
@@ -65,7 +73,7 @@ export const authOptions: NextAuthOptions = {
         }
 
         const isValidPassword = await compare(
-          credentials.password as string,
+          password,
           user.passwordHash
         );
 

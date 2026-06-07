@@ -2,6 +2,7 @@
 
 import { useRouter, usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
+import { useEffect } from "react";
 import {
   LayoutDashboard,
   Bus,
@@ -364,7 +365,15 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const router = useRouter();
   const { data: session, status } = useSession();
+
+  // Redirect unauthenticated users to login
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/login");
+    }
+  }, [status, router]);
 
   // Session loading state
   if (status === "loading") {

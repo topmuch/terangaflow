@@ -124,6 +124,23 @@ export async function getEligibleCreatives(
   // Flatten to eligible creatives with scoring data
   const results: EligibleCreative[] = [];
 
+  // Batch-fetch impression counts for all campaigns with maxImpressions cap
+  const campaignsNeedingCount = campaigns.filter(c => c.maxImpressions);
+  let impressionCounts: Map<string, number> = new Map();
+  if (campaignsNeedingCount.length > 0) {
+    const counts = await db.adImpression.groupBy({
+      by: ["campaignId"],
+      where: {
+        campaignId: { in: campaignsNeedingCount.map(c => c.id) },
+        type: "impression",
+      },
+      _count: true,
+    });
+    for (const row of counts) {
+      impressionCounts.set(row.campaignId, row._count);
+    }
+  }
+
   for (const campaign of campaigns) {
     // Check budget exhaustion
     if (campaign.budgetTotal > 0 && campaign.budgetSpent >= campaign.budgetTotal) {
@@ -135,14 +152,9 @@ export async function getEligibleCreatives(
       continue;
     }
 
-    // Check max impressions cap
+    // Check max impressions cap (use batch-fetched count)
     if (campaign.maxImpressions) {
-      const impressionCount = await db.adImpression.count({
-        where: {
-          campaignId: campaign.id,
-          type: "impression",
-        },
-      });
+      const impressionCount = impressionCounts.get(campaign.id) ?? 0;
       if (impressionCount >= campaign.maxImpressions) {
         await db.adCampaign.update({
           where: { id: campaign.id },

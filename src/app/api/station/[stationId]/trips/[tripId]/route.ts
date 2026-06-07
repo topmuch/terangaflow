@@ -98,7 +98,7 @@ export async function PATCH(
       include: { line: true },
     });
 
-    revalidatePath(`/dashboard/${stationId}`);
+    revalidatePath(`/station/${stationId}/trips`);
     return NextResponse.json(updatedTrip);
   } catch (error) {
     console.error("Erreur lors de la mise à jour du trajet:", error);
@@ -142,7 +142,7 @@ export async function DELETE(
       data: { deletedAt: new Date() },
     });
 
-    revalidatePath(`/dashboard/${stationId}`);
+    revalidatePath(`/station/${stationId}/trips`);
     return NextResponse.json({ message: "Trajet supprimé avec succès." });
   } catch (error) {
     console.error("Erreur lors de la suppression du trajet:", error);

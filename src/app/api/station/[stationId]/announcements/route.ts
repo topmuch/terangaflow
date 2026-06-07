@@ -15,7 +15,7 @@ import { requireAuth, verifyStationAccess } from "@/lib/api-auth";
 // ─── GET ────────────────────────────────────────────────────────────────────────
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ stationId: string }> }
 ): Promise<NextResponse> {
   const { stationId } = await params;
