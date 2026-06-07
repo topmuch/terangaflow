@@ -33,7 +33,9 @@ export const metadata: Metadata = {
   authors: [{ name: "TerangaFlow Team" }],
   icons: {
     icon: "/logo.svg",
+    apple: "/icons/icon-192.png",
   },
+  manifest: "/manifest.json",
   openGraph: {
     title: "TerangaFlow",
     description: "L'intelligence des gares, l'hospitalité en plus.",
@@ -48,6 +50,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fr" suppressHydrationWarning>
+      <head>
+        <meta name="theme-color" content="#f59e0b" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="TerangaFlow" />
+        <link rel="manifest" href="/manifest.json" />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >

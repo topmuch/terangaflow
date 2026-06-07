@@ -8,14 +8,20 @@ const PUBLIC_PATHS = [
   "/login",
   "/display",          // Public kiosk display pages
   "/p",                // Public merchant landing pages
+  "/pwa",              // PWA traveler app
+  "/alerts",           // Alert subscription pages
   "/api/auth",
   "/api/public",
   "/api/departures",    // Public departures API
   "/api/ads",           // Public ad serving + tracking API
+  "/api/push",          // Push subscription API (public opt-in)
   "/_next",
   "/favicon.ico",
   "/logo.svg",
   "/robots.txt",
+  "/manifest.json",
+  "/sw.js",
+  "/icons/",
 ];
 
 function isPublicPath(pathname: string): boolean {

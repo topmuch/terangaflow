@@ -160,6 +160,20 @@ model Merchant {
   @@index([stationId])
 }
 
+model PushSubscription {
+  id        String   @id @default(cuid())
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  stationId String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  station   Station? @relation(fields: [stationId], references: [id], onDelete: SetNull)
+
+  @@index([stationId])
+  @@index([createdAt])
+}
+
 model NotificationRule {
   id             String    @id @default(cuid())
   name           String
@@ -203,6 +217,7 @@ model Station {
   merchants          Merchant[]
   notificationRules  NotificationRule[]
   tenant             Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  pushSubscriptions  PushSubscription[]
   tickerMessages     TickerMessage[]
   transitionLogs     TransitionLog[]
   users              User[]

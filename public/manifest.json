@@ -1,0 +1,43 @@
+{
+  "name": "TerangaFlow — Voyageurs",
+  "short_name": "TerangaFlow",
+  "description": "Horaires en temps réel, alertes et services pour votre gare. Application progressive pour voyageurs.",
+  "start_url": "/pwa",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#f59e0b",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "fr",
+  "dir": "ltr",
+  "categories": ["travel", "transport"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Départs",
+      "short_name": "Départs",
+      "url": "/pwa",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Alertes",
+      "short_name": "Alertes",
+      "url": "/pwa/alerts",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
