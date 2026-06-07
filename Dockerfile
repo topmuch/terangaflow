@@ -8,6 +8,7 @@ WORKDIR /app
 RUN git clone https://github.com/topmuch/terangaflow.git .
 
 RUN bun install --frozen-lockfile || bun install
+RUN bun add -g tsx
 RUN bunx prisma generate
 RUN bun run build
 
@@ -20,4 +21,4 @@ ENV HOSTNAME=0.0.0.0
 
 EXPOSE 3000
 
-CMD ["sh", "-c", "bunx prisma db push --accept-data-loss 2>/dev/null; bun run start"]
+CMD ["sh", "-c", "bunx prisma db push --accept-data-loss 2>/dev/null; bun run db:seed; bun run start"]

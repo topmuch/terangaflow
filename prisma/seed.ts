@@ -1,372 +1,90 @@
-import { hash } from "bcryptjs";
-import { db } from "../src/lib/db";
+import { PrismaClient } from '@prisma/client';
+import { hash } from 'bcryptjs';
 
-async function main() {
-  console.log("🌱 Seeding TerangaFlow database…");
+const db = new PrismaClient();
 
-  // ─── 1. Create Tenant ────────────────────────────────────────────────────
+const LINES_DATA = [
+  { name: 'Dakar — Saint-Louis', code: 'DSL' },
+  { name: 'Dakar — Thiès', code: 'DTH' },
+  { name: 'Dakar — Kaolack', code: 'DKK' },
+  { name: 'Dakar — Ziguinchor', code: 'DZG' },
+  { name: 'Dakar — Tambacounda', code: 'DTA' },
+];
+
+async function seed() {
+  console.log('🌱 Seeding database...');
+
+  // Create tenant
   const tenant = await db.tenant.upsert({
-    where: { slug: "teranga-demo" },
+    where: { slug: 'terangaflow' },
     update: {},
     create: {
-      name: "TerangaFlow Demo",
-      slug: "teranga-demo",
-      plan: "pro",
+      name: 'TerangaFlow',
+      slug: 'terangaflow',
+      plan: 'pro',
     },
   });
-  console.log(`✅ Tenant created: ${tenant.name} (${tenant.id})`);
+  console.log(`✅ Tenant: ${tenant.name}`);
 
-  // ─── 2. Create Station ───────────────────────────────────────────────────
+  // Create station
   const station = await db.station.upsert({
-    where: { code: "DKR-01" },
+    where: { code: 'DKR' },
     update: {},
     create: {
-      name: "Gare Centrale de Dakar",
-      code: "DKR-01",
-      city: "Dakar",
-      country: "SN",
-      address: "Avenue Léopold Sédar Senghor, Dakar",
+      name: 'Gare de Dakar — Centrale',
+      code: 'DKR',
+      city: 'Dakar',
+      country: 'SN',
+      address: 'Avenue Blaise Diagne, Dakar',
       lat: 14.6937,
       lng: -17.4441,
-      timezone: "Africa/Dakar",
+      timezone: 'Africa/Dakar',
       tenantId: tenant.id,
     },
   });
-  console.log(`✅ Station created: ${station.name} (${station.id})`);
+  console.log(`✅ Station: ${station.name}`);
 
-  // ─── 3. Create SuperAdmin User ─────────────────────────────────────────────
-  const passwordHash = await hash("admin123", 12);
-
-  const superAdmin = await db.user.upsert({
-    where: { email: "admin@terangaflow.app" },
+  // Create admin user
+  const passwordHash = await hash('admin123', 12);
+  const admin = await db.user.upsert({
+    where: { email: 'admin@terangaflow.app' },
     update: {},
     create: {
-      email: "admin@terangaflow.app",
+      email: 'admin@terangaflow.app',
       passwordHash,
-      name: "Super Administrateur",
-      role: "SUPERADMIN",
+      name: 'Admin TerangaFlow',
+      role: 'SUPERADMIN',
       tenantId: tenant.id,
       stationId: station.id,
+      isActive: true,
     },
   });
-  console.log(`✅ SuperAdmin created: ${superAdmin.name} (${superAdmin.email})`);
+  console.log(`✅ Admin: ${admin.email}`);
 
-  // ─── 4. Create Station Manager ───────────────────────────────────────────
-  const managerPassword = await hash("manager123", 12);
-
-  const manager = await db.user.upsert({
-    where: { email: "manager@terangaflow.app" },
-    update: {},
-    create: {
-      email: "manager@terangaflow.app",
-      passwordHash: managerPassword,
-      name: "Mamadou Diop",
-      role: "STATION_MANAGER",
-      tenantId: tenant.id,
-      stationId: station.id,
-    },
-  });
-  console.log(`✅ Station Manager created: ${manager.name} (${manager.email})`);
-
-  // ─── 5. Create Transporter ────────────────────────────────────────────────
-  const transporterPassword = await hash("transport123", 12);
-
-  const transporter = await db.user.upsert({
-    where: { email: "transporteur@terangaflow.app" },
-    update: {},
-    create: {
-      email: "transporteur@terangaflow.app",
-      passwordHash: transporterPassword,
-      name: "Diaspora Bus SARL",
-      role: "TRANSPORTER",
-      tenantId: tenant.id,
-      stationId: station.id,
-    },
-  });
-  console.log(`✅ Transporter created: ${transporter.name} (${transporter.email})`);
-
-  // ─── 6. Create Test Lines ──────────────────────────────────────────────────
-  const linesData = [
-    { name: "Dakar → Saint-Louis", code: "DKR-SLS" },
-    { name: "Dakar → Thiès", code: "DKR-THI" },
-    { name: "Dakar → Kaolack", code: "DKR-KLK" },
-    { name: "Dakar → Ziguinchor", code: "DKR-ZIG" },
-    { name: "Dakar → Tambacounda", code: "DKR-TMB" },
-  ];
-
-  for (const lineData of linesData) {
-    const existing = await db.line.findFirst({
-      where: { code: lineData.code, stationId: station.id },
-    });
-    const line = existing
-      ? existing
-      : await db.line.create({
-          data: {
-            ...lineData,
-            stationId: station.id,
-          },
-        });
-    console.log(`  ✅ Line created: ${line.name}`);
-  }
-
-  // ─── 7. Create Sample Trips ──────────────────────────────────────────────
-  const lines = await db.line.findMany({ where: { stationId: station.id } });
-
-  const now = new Date();
-  const tripsData = [
-    { lineIdx: 0, operator: "Diaspora Bus", hoursOffset: 0, platform: "A3" },
-    { lineIdx: 1, operator: "SATAS", hoursOffset: 0.5, platform: "B1" },
-    { lineIdx: 2, operator: "SOTRAL", hoursOffset: 0.75, platform: "A1" },
-    { lineIdx: 3, operator: "Le Transporteur", hoursOffset: 1, platform: "B2" },
-    { lineIdx: 4, operator: "CSC Kaloum", hoursOffset: 1.25, platform: "A2" },
-    { lineIdx: 0, operator: "Horizon Bus", hoursOffset: 2, platform: "A3" },
-    { lineIdx: 1, operator: "SATAS Express", hoursOffset: 2.5, platform: "B1" },
-  ];
-
-  for (const tripData of tripsData) {
-    if (!lines[tripData.lineIdx]) continue;
-    const departure = new Date(now.getTime() + tripData.hoursOffset * 3600000);
-    const arrival = new Date(departure.getTime() + 3 * 3600000); // +3h average
-
-    await db.trip.create({
-      data: {
-        lineId: lines[tripData.lineIdx].id,
-        operatorName: tripData.operator,
-        departureTime: departure,
-        estimatedArrival: arrival,
-        status: "scheduled",
-        platform: tripData.platform,
-      },
-    });
-  }
-  console.log("✅ Sample trips created");
-
-  // ─── 8. Create Sample Merchants ────────────────────────────────────────
-  const merchantsData = [
-    {
-      name: "Boutique Nouvelles Frontières",
-      description: "Accessoires de voyage, bagagerie et cadeaux du Sénégal",
-      category: "boutique",
-      whatsapp: "+221 77 123 45 67",
-      mapsUrl: "https://maps.google.com/?q=14.6937,-17.4441",
-      promoText: "-20% sur tous les accessoires de voyage ce week-end !",
-      promoExpiry: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-      displayOrder: 0,
-    },
-    {
-      name: "Restaurant Le Teranga",
-      description: "Cuisine sénégalaise authentique — thiéboudienne, yassa, maffé",
-      category: "restaurant",
-      whatsapp: "+221 76 987 65 43",
-      mapsUrl: "https://maps.google.com/?q=14.6940,-17.4435",
-      promoText: null,
-      displayOrder: 1,
-    },
-    {
-      name: "Orange Digital Center",
-      description: "Recharge mobile, internet et transfert d'argent",
-      category: "telecom",
-      whatsapp: "+221 78 555 00 11",
-      mapsUrl: null,
-      promoText: "Gratuit : 500 Mo offerts pour tout nouveau client",
-      promoExpiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
-      displayOrder: 2,
-    },
-    {
-      name: "Diaspora Express",
-      description: "Service de livraison de colis vers la France, Italie et Espagne",
-      category: "service",
-      whatsapp: "+221 77 333 22 11",
-      mapsUrl: "https://maps.google.com/?q=14.6935,-17.4445",
-      promoText: null,
-      displayOrder: 3,
-    },
-    {
-      name: "Banque Atlantique — Agence Gare",
-      description: "Retrait, dépôt, change et transfert Western Union",
-      category: "banque",
-      whatsapp: null,
-      mapsUrl: "https://maps.google.com/?q=14.6938,-17.4443",
-      promoText: null,
-      displayOrder: 4,
-    },
-    {
-      name: "Taxi Gare Dakar",
-      description: "Station de taxis partagés vers toute la région de Dakar",
-      category: "transport",
-      whatsapp: "+221 76 444 33 22",
-      mapsUrl: null,
-      promoText: "Trajet Plateau → Gare : 500 FCFA seulement",
-      promoExpiry: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 days
-      displayOrder: 5,
-    },
-  ];
-
-  for (const merchantData of merchantsData) {
-    const existing = await db.merchant.findFirst({
-      where: {
-        stationId: station.id,
-        name: merchantData.name,
-        deletedAt: null,
-      },
-    });
-    if (!existing) {
-      await db.merchant.create({
+  // Create demo lines
+  for (const line of LINES_DATA) {
+    const exists = await db.line.findFirst({ where: { code: line.code, stationId: station.id } });
+    if (!exists) {
+      await db.line.create({
         data: {
-          ...merchantData,
+          name: line.name,
+          code: line.code,
           stationId: station.id,
           isActive: true,
         },
       });
-      console.log(`  ✅ Merchant created: ${merchantData.name}`);
-    } else {
-      console.log(`  ✅ Merchant already exists: ${merchantData.name}`);
     }
   }
+  console.log(`✅ Lines: ${LINES_DATA.length} created`);
 
-  // ─── 9. Create Billing Subscription ────────────────────────────────────────
-  const existingSub = await db.billingSubscription.findFirst({
-    where: { tenantId: tenant.id },
-  });
-  if (!existingSub) {
-    await db.billingSubscription.create({
-      data: {
-        tenantId: tenant.id,
-        plan: "pro",
-        status: "ACTIVE",
-        currentPeriodStart: new Date(),
-        currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      },
-    });
-    console.log("✅ Billing subscription created");
-  } else {
-    console.log("✅ Billing subscription already exists");
-  }
-
-  console.log("\n🎉 Seed complete! Use these credentials to login:");
-  console.log("   SuperAdmin:  admin@terangaflow.app / admin123");
-  console.log("   Manager:    manager@terangaflow.app / manager123");
-  console.log("   Transport:  transporteur@terangaflow.app / transport123");
-  console.log("");
-
-  // ─── 10. Create Sample Ad Campaigns ──────────────────────────────────────
-  const adCampaignsData = [
-    {
-      name: "Promo Orange — Ramadan 2025",
-      advertiserName: "Orange Sénégal",
-      targetingSlot: "header",
-      priority: 80,
-      budgetTotal: 500000, // 500K FCFA
-      budgetSpent: 0,
-      cpmCost: 150, // 150 FCFA per 1000 impressions
-      cpcCost: 50,  // 50 FCFA per click
-      maxImpressions: 100000,
-      status: "active",
-      startDate: new Date(),
-      endDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000), // 60 days
-      creatives: [
-        {
-          title: "Offre spéciale Ramadan — Double recharge",
-          body: "Rechargez 5000 FCFA, recevez 5000 FCFA offerts. Valable jusqu'à fin du Ramadan.",
-          imageUrl: null,
-          linkUrl: "https://www.orange.sn",
-          ctaText: "Profiter de l'offre",
-          displayOrder: 0,
-        },
-      ],
-    },
-    {
-      name: "Diaspora Express — Livraison colis",
-      advertiserName: "Diaspora Express",
-      targetingSlot: "insert",
-      priority: 60,
-      budgetTotal: 300000,
-      budgetSpent: 0,
-      cpmCost: 100,
-      cpcCost: 35,
-      maxImpressions: 50000,
-      status: "active",
-      startDate: new Date(),
-      endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
-      creatives: [
-        {
-          title: "Envoyez vos colis en Europe — Tarifs réduits",
-          body: "Livraison Dakar → Paris en 72h. Première livraison à 15 000 FCFA seulement.",
-          imageUrl: null,
-          linkUrl: null,
-          ctaText: "En savoir plus",
-          displayOrder: 0,
-        },
-      ],
-    },
-    {
-      name: "Banque Atlantique — Ouverture de compte",
-      advertiserName: "Banque Atlantique",
-      targetingSlot: "sidebar",
-      priority: 40,
-      budgetTotal: 200000,
-      budgetSpent: 0,
-      cpmCost: 80,
-      cpcCost: 25,
-      maxImpressions: null,
-      status: "active",
-      startDate: new Date(),
-      endDate: null, // no end date
-      creatives: [
-        {
-          title: "Ouvrez votre compte en 5 minutes",
-          body: "0 frais de dossier. Carte Visa offerte. Transfert Western Union disponible.",
-          imageUrl: null,
-          linkUrl: null,
-          ctaText: "En savoir plus",
-          displayOrder: 0,
-        },
-      ],
-    },
-  ];
-
-  for (const campaignData of adCampaignsData) {
-    const existing = await db.adCampaign.findFirst({
-      where: {
-        stationId: station.id,
-        name: campaignData.name,
-        deletedAt: null,
-      },
-    });
-
-    if (!existing) {
-      const { creatives, ...campaignFields } = campaignData;
-
-      const campaign = await db.adCampaign.create({
-        data: {
-          ...campaignFields,
-          stationId: station.id,
-        },
-      });
-
-      for (const creativeData of creatives) {
-        await db.adCreative.create({
-          data: {
-            ...creativeData,
-            campaignId: campaign.id,
-            isActive: true,
-          },
-        });
-      }
-
-      console.log(`  ✅ Ad campaign created: ${campaign.name} (${creatives.length} créatif(s))`);
-    } else {
-      console.log(`  ✅ Ad campaign already exists: ${campaignData.name}`);
-    }
-  }
+  console.log('🎉 Seed completed!');
 }
 
-main()
-  .then(async () => {
-    await db.$disconnect();
-  })
-  .catch(async (e: Error) => {
-    console.error("❌ Seed error:", e);
-    await db.$disconnect();
+seed()
+  .catch((e) => {
+    console.error('❌ Seed failed:', e);
     process.exit(1);
+  })
+  .finally(async () => {
+    await db.$disconnect();
   });
