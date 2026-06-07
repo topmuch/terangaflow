@@ -224,7 +224,8 @@ export default function PublicMerchantPage() {
   if (loading) return <LoadingSkeleton />;
   if (notFound || !merchant) return <NotFoundPage />;
 
-  const categoryInfo = CATEGORY_ICONS[merchant.category] ?? CATEGORY_ICONS.autre;
+  const DEFAULT_CATEGORY = { emoji: "🏪", label: "Commerce" };
+  const categoryInfo = CATEGORY_ICONS[merchant.category] ?? CATEGORY_ICONS["autre"] ?? DEFAULT_CATEGORY;
   const whatsappUrl = merchant.whatsapp
     ? `https://wa.me/${cleanWhatsappNumber(merchant.whatsapp)}?text=${encodeURIComponent(
         `Bonjour, je vous contacte depuis TerangaFlow - Gare ${merchant.station.name}`

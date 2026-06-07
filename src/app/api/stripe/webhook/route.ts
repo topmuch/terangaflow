@@ -69,7 +69,7 @@ function getSubscriptionData(obj: unknown): StripeSubscriptionData | null {
     current_period_end: typeof s.current_period_end === "number" ? s.current_period_end : undefined,
     cancel_at: typeof s.cancel_at === "number" ? s.cancel_at : undefined,
     canceled_at: typeof s.canceled_at === "number" ? s.canceled_at : undefined,
-    plan: typeof s.plan === "object" && s.plan !== null ? s.plan as Record<string, unknown> : undefined,
+    plan: typeof s.plan === "object" && s.plan !== null ? s.plan as { id: string; amount?: number } : undefined,
     metadata: typeof s.metadata === "object" && s.metadata !== null ? s.metadata as Record<string, string> : undefined,
   };
 }
@@ -324,7 +324,7 @@ async function handleSubscriptionDeleted(event: Stripe.Event): Promise<void> {
  */
 async function handlePaymentFailed(event: Stripe.Event): Promise<void> {
   // The invoice object contains a subscription field
-  const invoiceData = event.data.object as Record<string, unknown>;
+  const invoiceData = event.data.object as unknown as Record<string, unknown>;
   const stripeSubscriptionId =
     typeof invoiceData.subscription === "string"
       ? (invoiceData.subscription as string)

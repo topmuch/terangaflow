@@ -81,7 +81,9 @@ export async function POST(
         }
 
         // Parse departure time (HH:MM) and compute arrival
-        const [hours, minutes] = validated.departureTime.split(":").map(Number);
+        const parts = validated.departureTime.split(":").map(Number);
+        const hours = parts[0] ?? 0;
+        const minutes = parts[1] ?? 0;
         if (isNaN(hours) || isNaN(minutes)) {
           skipped++;
           continue;

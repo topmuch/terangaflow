@@ -46,27 +46,28 @@ export async function PATCH(
     }
 
     // Build update data from allowed fields only
+    const b = body as Record<string, unknown>;
     const updateData: Record<string, unknown> = {};
-    if (typeof body.platform === "string") updateData.platform = body.platform;
-    if (typeof body.notes === "string") updateData.notes = body.notes;
-    if (typeof (body as Record<string, unknown>).operatorName === "string")
-      updateData.operatorName = (body as Record<string, unknown>).operatorName;
-    if (typeof (body as Record<string, unknown>).departureTime === "string") {
-      const parsed = new Date((body as Record<string, unknown>).departureTime as string);
+    if (typeof b.platform === "string") updateData.platform = b.platform;
+    if (typeof b.notes === "string") updateData.notes = b.notes;
+    if (typeof b.operatorName === "string")
+      updateData.operatorName = b.operatorName;
+    if (typeof b.departureTime === "string") {
+      const parsed = new Date(b.departureTime);
       if (!isNaN(parsed.getTime())) {
         updateData.departureTime = parsed;
       }
     }
-    if (typeof (body as Record<string, unknown>).estimatedArrival === "string") {
-      const parsed = new Date((body as Record<string, unknown>).estimatedArrival as string);
+    if (typeof b.estimatedArrival === "string") {
+      const parsed = new Date(b.estimatedArrival);
       if (!isNaN(parsed.getTime())) {
         updateData.estimatedArrival = parsed;
       }
     }
 
     // ─── STATUS CHANGE: validate via state machine ────────────────────────
-    if (typeof (body as Record<string, unknown>).status === "string") {
-      const newStatus = ((body as Record<string, unknown>).status as string).toUpperCase();
+    if (typeof b.status === "string") {
+      const newStatus = (b.status as string).toUpperCase();
       const validation = validateTransition(existingTrip.status, newStatus);
 
       if (!validation.valid) {

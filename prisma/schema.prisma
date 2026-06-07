@@ -23,7 +23,7 @@ model AdCampaign {
   startDate      DateTime
   endDate        DateTime?
   createdAt      DateTime       @default(now())
-  updatedAt      DateTime
+  updatedAt      DateTime       @updatedAt
   deletedAt      DateTime?
   station        Station        @relation(fields: [stationId], references: [id], onDelete: Cascade)
   creatives      AdCreative[]
@@ -47,7 +47,7 @@ model AdCreative {
   displayOrder Int            @default(0)
   isActive     Boolean        @default(true)
   createdAt    DateTime       @default(now())
-  updatedAt    DateTime
+  updatedAt    DateTime       @updatedAt
   campaign     AdCampaign     @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   impressions  AdImpression[]
 
@@ -94,7 +94,7 @@ model AnnouncementQueue {
   playedAt        DateTime?
   error           String?
   createdAt       DateTime  @default(now())
-  updatedAt       DateTime
+  updatedAt       DateTime  @updatedAt
   station         Station   @relation(fields: [stationId], references: [id], onDelete: Cascade)
 
   @@index([priority])
@@ -113,7 +113,7 @@ model BillingSubscription {
   currentPeriodEnd         DateTime?
   cancelledAt              DateTime?
   createdAt                DateTime  @default(now())
-  updatedAt                DateTime
+  updatedAt                DateTime  @updatedAt
   tenant                   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([status])
@@ -127,7 +127,7 @@ model Line {
   stationId String
   isActive  Boolean   @default(true)
   createdAt DateTime  @default(now())
-  updatedAt DateTime
+  updatedAt DateTime  @updatedAt
   deletedAt DateTime?
   station   Station   @relation(fields: [stationId], references: [id], onDelete: Cascade)
   trips     Trip[]
@@ -150,7 +150,7 @@ model Merchant {
   displayOrder Int       @default(0)
   stationId    String
   createdAt    DateTime  @default(now())
-  updatedAt    DateTime
+  updatedAt    DateTime  @updatedAt
   deletedAt    DateTime?
   station      Station   @relation(fields: [stationId], references: [id], onDelete: Cascade)
 
@@ -187,7 +187,7 @@ model NotificationRule {
   priority       Int       @default(0)
   isActive       Boolean   @default(true)
   createdAt      DateTime  @default(now())
-  updatedAt      DateTime
+  updatedAt      DateTime  @updatedAt
   deletedAt      DateTime?
   station        Station   @relation(fields: [stationId], references: [id], onDelete: Cascade)
 
@@ -209,7 +209,7 @@ model Station {
   isActive          Boolean             @default(true)
   tenantId          String
   createdAt         DateTime            @default(now())
-  updatedAt         DateTime
+  updatedAt         DateTime            @updatedAt
   deletedAt         DateTime?
   // White-label branding fields
   customDomain      String?             @unique
@@ -243,7 +243,7 @@ model Tenant {
   domain              String?               @unique
   plan                String                @default("free")
   createdAt           DateTime              @default(now())
-  updatedAt           DateTime
+  updatedAt           DateTime              @updatedAt
   deletedAt           DateTime?
   billingSubscriptions BillingSubscription[]
   stations             Station[]
@@ -261,7 +261,7 @@ model TickerMessage {
   displayOrder Int       @default(0)
   stationId    String
   createdAt    DateTime  @default(now())
-  updatedAt    DateTime
+  updatedAt    DateTime  @updatedAt
   deletedAt    DateTime?
   station      Station   @relation(fields: [stationId], references: [id], onDelete: Cascade)
 
@@ -297,7 +297,7 @@ model Trip {
   platform         String?
   notes            String?
   createdAt        DateTime        @default(now())
-  updatedAt        DateTime
+  updatedAt        DateTime        @updatedAt
   deletedAt        DateTime?
   transitionLogs    TransitionLog[]
   line             Line            @relation(fields: [lineId], references: [id], onDelete: Cascade)
@@ -321,7 +321,7 @@ model User {
   tenantId      String
   stationId     String?
   createdAt     DateTime  @default(now())
-  updatedAt     DateTime
+  updatedAt     DateTime  @updatedAt
   deletedAt     DateTime?
   station       Station?  @relation(fields: [stationId], references: [id])
   tenant        Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)

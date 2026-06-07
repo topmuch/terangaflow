@@ -1130,7 +1130,7 @@ export default function NotificationsControlCenterPage() {
                     {announcements.map((announcement) => {
                       const statusConfig =
                         ANNOUNCEMENT_STATUS_CONFIG[announcement.status] ??
-                        ANNOUNCEMENT_STATUS_CONFIG.pending;
+                        { label: announcement.status, color: "" };
                       const ChannelIcon =
                         getChannelIcon(announcement.channel);
 

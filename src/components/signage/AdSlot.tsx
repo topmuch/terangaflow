@@ -118,7 +118,7 @@ export function AdSlot({
   const [loading, setLoading] = useState(true);
   const [impressionTracked, setImpressionTracked] = useState(false);
   const sessionIdRef = useRef("");
-  const rotationTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const rotationTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // Initialize session ID once
   useEffect(() => {

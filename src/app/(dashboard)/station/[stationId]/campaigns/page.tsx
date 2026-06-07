@@ -358,8 +358,8 @@ export default function CampaignsPage() {
       {/* ─── Campaigns list ──────────────────────────────────────────────── */}
       <div className="space-y-3">
         {campaigns.map((campaign) => {
-          const slotInfo = SLOT_LABELS[campaign.targetingSlot] ?? SLOT_LABELS.insert;
-          const statusInfo = STATUS_LABELS[campaign.status] ?? STATUS_LABELS.active;
+          const slotInfo = SLOT_LABELS[campaign.targetingSlot] ?? { label: campaign.targetingSlot, color: "" };
+          const statusInfo = STATUS_LABELS[campaign.status] ?? { label: campaign.status, color: "", icon: CheckCircle2 };
           const StatusIcon = statusInfo.icon;
           const isExpanded = expandedId === campaign.id;
           const budgetUtil =

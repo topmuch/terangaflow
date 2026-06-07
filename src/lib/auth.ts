@@ -3,7 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
 import { db } from "@/lib/db";
 
-import type { Role } from "@prisma/client";
+export type Role = "SUPERADMIN" | "STATION_MANAGER" | "TRANSPORTER" | "MERCHANT";
 
 declare module "next-auth" {
   interface Session {
@@ -91,7 +91,7 @@ export const authOptions: NextAuthOptions = {
           id: user.id,
           email: user.email,
           name: user.name,
-          role: user.role,
+          role: user.role as Role,
           tenantId: user.tenantId,
           stationId: user.stationId,
         };

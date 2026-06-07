@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 
-interface KioskModeState {
+export interface KioskModeState {
   isKiosk: boolean;
   isFullscreen: boolean;
   wakeLockActive: boolean;

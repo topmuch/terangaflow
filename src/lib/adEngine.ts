@@ -56,7 +56,7 @@ export function selectCreative(
   if (candidates.length === 0) return null;
 
   // Single candidate = immediate return
-  if (candidates.length === 1) return candidates[0];
+  if (candidates.length === 1) return candidates[0] ?? null;
 
   // Calculate weights for each candidate
   const weights: number[] = candidates.map((c) => {
@@ -82,14 +82,14 @@ export function selectCreative(
   let random = Math.random() * totalWeight;
 
   for (let i = 0; i < candidates.length; i++) {
-    random -= weights[i];
+    random -= weights[i]!;
     if (random <= 0) {
-      return candidates[i];
+      return candidates[i] ?? null;
     }
   }
 
   // Fallback to last candidate (should rarely reach here)
-  return candidates[candidates.length - 1];
+  return candidates[candidates.length - 1] ?? null;
 }
 
 // ─── Query eligible campaigns + creatives from DB ──────────────────────────────

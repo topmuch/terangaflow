@@ -39,7 +39,7 @@ export function getStripeClient(): Stripe | null {
 
   if (!_stripeClient) {
     _stripeClient = new Stripe(STRIPE_SECRET_KEY as string, {
-      apiVersion: "2025-06-30.basil",
+      apiVersion: "2026-05-27.dahlia",
       typescript: true,
     });
   }

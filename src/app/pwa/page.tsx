@@ -237,7 +237,7 @@ export default function PwaHomePage() {
           </Card>
         ) : (
           departures.map((trip) => {
-            const statusConf = STATUS_CONFIG[trip.status] || STATUS_CONFIG.scheduled;
+            const statusConf = (STATUS_CONFIG[trip.status] || STATUS_CONFIG.scheduled) ?? { label: "À l'heure", color: "bg-emerald-100 text-emerald-700" };
             const urgent = isUrgent(trip.departureTime);
 
             return (

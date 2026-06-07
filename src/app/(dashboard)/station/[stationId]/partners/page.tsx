@@ -92,7 +92,7 @@ const CATEGORY_CONFIG: Record<string, { icon: string; color: string }> = {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function getCategoryBadge(category: string) {
-  const config = CATEGORY_CONFIG[category] ?? CATEGORY_CONFIG.autre;
+  const config = CATEGORY_CONFIG[category] ?? { icon: "📦", color: "bg-gray-100 text-gray-600" };
   return (
     <Badge
       variant="secondary"

@@ -39,7 +39,7 @@ export async function POST(
 
     const parsed = bodySchema.safeParse(body);
     if (!parsed.success) {
-      const firstError = parsed.error.errors[0];
+      const firstError = parsed.error.issues[0];
       return NextResponse.json(
         { error: firstError?.message ?? "Validation échouée." },
         { status: 400 }

@@ -41,7 +41,7 @@ export default function LineForm({ stationId, line, onSuccess, onCancel }: LineF
   const { toast } = useToast();
 
   const form = useForm<CreateLineInput>({
-    resolver: zodResolver(createLineSchema),
+    resolver: zodResolver(createLineSchema) as any,
     defaultValues: line
       ? {
           name: line.name,

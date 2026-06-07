@@ -154,7 +154,7 @@ export function usePushSubscription(): UsePushSubscriptionReturn {
         // 3. Create push subscription
         const subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as unknown as BufferSource,
         });
 
         // 4. Send subscription to server

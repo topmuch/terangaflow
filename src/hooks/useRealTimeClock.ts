@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 
-interface RealTimeClock {
+export interface RealTimeClock {
   time: string;        // HH:MM:SS
   date: string;        // "mercredi 15 janvier 2025"
   isoString: string;   // ISO 8601

@@ -305,7 +305,7 @@ function SidebarUserFooter() {
               <SidebarMenuButton size="lg" className="w-full">
                 <Avatar className="h-8 w-8 rounded-lg">
                   <AvatarImage
-                    src={session?.user?.avatar ?? undefined}
+                    src={(session?.user as Record<string, unknown> | undefined)?.avatar as string | undefined}
                     alt={session?.user?.name ?? "Avatar"}
                   />
                   <AvatarFallback className="rounded-lg text-xs">
