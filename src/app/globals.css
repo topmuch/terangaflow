@@ -152,6 +152,22 @@
 }
 
 /* Respect reduced motion */
+/* ─── Rose Sidebar Theme ─────────────────────────────────────────────────── */
+.sidebar-rose {
+  --sidebar-bg: oklch(0.97 0.015 350);
+  --sidebar-border: oklch(0.92 0.02 350);
+  --sidebar-accent: oklch(0.95 0.02 350);
+  --sidebar-primary: oklch(0.55 0.24 293);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+}
+.dark .sidebar-rose {
+  --sidebar-bg: oklch(0.22 0.04 350);
+  --sidebar-border: oklch(0.28 0.05 350);
+  --sidebar-accent: oklch(0.28 0.04 350);
+  --sidebar-primary: oklch(0.65 0.24 293);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-bounce,
   .animate-pulse,

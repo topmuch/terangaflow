@@ -12,6 +12,7 @@ import {
   Monitor,
   ArrowUpRight,
   Activity,
+  Volume2,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -24,6 +25,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 // ─── Animation variants ────────────────────────────────────────────────────────
 
@@ -47,11 +49,12 @@ interface StatCardProps {
   value: string;
   description: string;
   icon: React.ComponentType<{ className?: string }>;
+  iconColor?: string;
   trend?: string;
   trendUp?: boolean;
 }
 
-function StatCard({ title, value, description, icon: Icon, trend, trendUp }: StatCardProps) {
+function StatCard({ title, value, description, icon: Icon, iconColor, trend, trendUp }: StatCardProps) {
   return (
     <motion.div variants={itemVariants}>
       <Card>
@@ -59,7 +62,7 @@ function StatCard({ title, value, description, icon: Icon, trend, trendUp }: Sta
           <CardTitle className="text-sm font-medium text-muted-foreground">
             {title}
           </CardTitle>
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
+          <div className={cn("flex h-9 w-9 items-center justify-center rounded-lg", iconColor ?? "bg-amber-500/10 text-amber-600 dark:text-amber-400")}>
             <Icon className="h-4 w-4" />
           </div>
         </CardHeader>
@@ -133,6 +136,7 @@ export default function DashboardPage() {
           value="47"
           description="+12% vs hier"
           icon={Bus}
+          iconColor="bg-blue-500/10 text-blue-600 dark:text-blue-400"
           trend="+12%"
           trendUp
         />
@@ -141,6 +145,7 @@ export default function DashboardPage() {
           value="1,284"
           description="Données mises à jour en temps réel"
           icon={Users}
+          iconColor="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
           trend="+8%"
           trendUp
         />
@@ -149,12 +154,14 @@ export default function DashboardPage() {
           value="12"
           description="2 lignes en maintenance"
           icon={MapPin}
+          iconColor="bg-violet-500/10 text-violet-600 dark:text-violet-400"
         />
         <StatCard
           title="Revenus publicitaires"
           value="245K FCFA"
           description="Ce mois — objectif 400K"
           icon={TrendingUp}
+          iconColor="bg-orange-500/10 text-orange-600 dark:text-orange-400"
           trend="+18%"
           trendUp
         />
@@ -240,8 +247,8 @@ export default function DashboardPage() {
                 className="h-auto justify-start gap-3 p-3"
                 asChild
               >
-                <a href="/dashboard/kiosk">
-                  <Monitor className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                <a href={`/display/${session?.user?.stationId ?? ""}`}>
+                  <Monitor className="h-4 w-4 text-violet-600 dark:text-violet-400" />
                   <div className="text-left">
                     <div className="text-sm font-medium">Kiosque</div>
                     <div className="text-xs text-muted-foreground">
@@ -255,8 +262,8 @@ export default function DashboardPage() {
                 className="h-auto justify-start gap-3 p-3"
                 asChild
               >
-                <a href="/dashboard/lines">
-                  <Bus className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                <a href={`/station/${session?.user?.stationId ?? ""}/lines`}>
+                  <Bus className="h-4 w-4 text-violet-600 dark:text-violet-400" />
                   <div className="text-left">
                     <div className="text-sm font-medium">Gérer les lignes</div>
                     <div className="text-xs text-muted-foreground">
@@ -270,8 +277,8 @@ export default function DashboardPage() {
                 className="h-auto justify-start gap-3 p-3"
                 asChild
               >
-                <a href="/dashboard/notifications">
-                  <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                <a href={`/station/${session?.user?.stationId ?? ""}/notifications`}>
+                  <Volume2 className="h-4 w-4 text-violet-600 dark:text-violet-400" />
                   <div className="text-left">
                     <div className="text-sm font-medium">Envoyer une annonce</div>
                     <div className="text-xs text-muted-foreground">

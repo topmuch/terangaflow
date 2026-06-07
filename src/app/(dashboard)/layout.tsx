@@ -6,10 +6,7 @@ import { useEffect } from "react";
 import {
   LayoutDashboard,
   Bus,
-  Bell,
   Megaphone,
-  Users,
-  Settings,
   CreditCard,
   Monitor,
   LogOut,
@@ -21,7 +18,10 @@ import {
   Upload,
   Volume2,
   Store,
+  Moon,
+  Sun,
 } from "lucide-react";
+import { useTheme } from "next-themes";
 
 import { cn } from "@/lib/utils";
 import {
@@ -60,7 +60,7 @@ interface NavItem {
   roles: string[];
 }
 
-const MAIN_NAV: NavItem[] = [
+const PRINCIPAL_NAV: NavItem[] = [
   {
     title: "Tableau de bord",
     href: "/dashboard",
@@ -69,32 +69,8 @@ const MAIN_NAV: NavItem[] = [
   },
   {
     title: "Kiosque",
-    href: "/dashboard/kiosk",
+    href: "/display/_SID_",
     icon: Monitor,
-    roles: ["SUPERADMIN", "STATION_MANAGER"],
-  },
-  {
-    title: "Lignes & Départs",
-    href: "/dashboard/lines",
-    icon: Bus,
-    roles: ["SUPERADMIN", "STATION_MANAGER", "TRANSPORTER"],
-  },
-  {
-    title: "Notifications",
-    href: "/dashboard/notifications",
-    icon: Bell,
-    roles: ["SUPERADMIN", "STATION_MANAGER"],
-  },
-  {
-    title: "Partenaires",
-    href: "/dashboard/partners",
-    icon: Users,
-    roles: ["SUPERADMIN", "STATION_MANAGER", "MERCHANT"],
-  },
-  {
-    title: "Publicité",
-    href: "/dashboard/advertising",
-    icon: Megaphone,
     roles: ["SUPERADMIN", "STATION_MANAGER"],
   },
 ];
@@ -150,20 +126,7 @@ const STATION_NAV: NavItem[] = [
   },
 ];
 
-const ADMIN_NAV: NavItem[] = [
-  {
-    title: "Abonnements",
-    href: "/dashboard/billing",
-    icon: CreditCard,
-    roles: ["SUPERADMIN"],
-  },
-  {
-    title: "Paramètres",
-    href: "/dashboard/settings",
-    icon: Settings,
-    roles: ["SUPERADMIN", "STATION_MANAGER"],
-  },
-];
+// ADMIN_NAV removed — billing merged into STATION_NAV, settings removed
 
 // ─── Sidebar Brand ────────────────────────────────────────────────────────────
 
@@ -171,7 +134,7 @@ function SidebarBrand() {
   return (
     <SidebarHeader className="border-b border-sidebar-border">
       <div className="flex items-center gap-3 px-2 py-1">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-500 text-white shadow-sm">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-violet-600 text-white shadow-sm">
           <Bus className="h-5 w-5" />
         </div>
         <div className="flex flex-col overflow-hidden">
@@ -210,17 +173,17 @@ function SidebarNav({ role, stationId }: { role: string; stationId: string | nul
   return (
     <SidebarContent>
       <SidebarGroup>
-        <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+        <SidebarGroupLabel>Principal</SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu>
-            {filterByRole(MAIN_NAV).map((item) => (
+            {filterByRole(PRINCIPAL_NAV).map((item) => (
               <SidebarMenuItem key={item.href}>
                 <SidebarMenuButton
                   asChild
                   isActive={isActive(item.href)}
                   tooltip={item.title}
                 >
-                  <a href={item.href}>
+                  <a href={resolveHref(item.href)}>
                     <item.icon className="h-4 w-4" />
                     <span>{item.title}</span>
                   </a>
@@ -250,30 +213,6 @@ function SidebarNav({ role, stationId }: { role: string; stationId: string | nul
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-      )}
-
-      {(role === "SUPERADMIN" || role === "STATION_MANAGER") && (
-        <SidebarGroup>
-          <SidebarGroupLabel>Administration</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {filterByRole(ADMIN_NAV).map((item) => (
-                <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={isActive(item.href)}
-                    tooltip={item.title}
-                  >
-                    <a href={item.href}>
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                    </a>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -349,11 +288,24 @@ function SidebarUserFooter() {
 // ─── Top Header Bar ────────────────────────────────────────────────────────────
 
 function TopHeader({ title }: { title: string }) {
+  const { theme, setTheme } = useTheme();
+
   return (
     <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4 bg-background">
       <SidebarTrigger className="-ml-1" />
       <Separator orientation="vertical" className="mr-2 h-4" />
       <h1 className="text-sm font-medium truncate">{title}</h1>
+      <div className="ml-auto">
+        <button
+          type="button"
+          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+          className="relative inline-flex h-8 w-8 items-center justify-center rounded-md border border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+          aria-label="Basculer le thème"
+        >
+          <Sun className="h-4 w-4 rotate-0 scale-100 transition-transform dark:-rotate-90 dark:scale-0" />
+          <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-transform dark:rotate-0 dark:scale-100" />
+        </button>
+      </div>
     </header>
   );
 }
@@ -380,7 +332,7 @@ export default function DashboardLayout({
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-muted border-t-amber-500" />
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-muted border-t-violet-500" />
           <p className="text-sm text-muted-foreground">Chargement…</p>
         </div>
       </div>
@@ -391,7 +343,7 @@ export default function DashboardLayout({
 
   return (
     <SidebarProvider>
-      <Sidebar collapsible="icon" variant="sidebar">
+      <Sidebar collapsible="icon" variant="sidebar" className="sidebar-rose">
         <SidebarBrand />
         <SidebarNav role={role} stationId={session?.user?.stationId ?? null} />
         <SidebarUserFooter />
