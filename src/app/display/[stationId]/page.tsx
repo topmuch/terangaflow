@@ -1,9 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useSyncExternalStore } from "react";
 import { useParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { Wifi, WifiOff } from "lucide-react";
 
 import { useRealTimeClock } from "@/hooks/useRealTimeClock";
 import { useKioskMode } from "@/hooks/useKioskMode";
@@ -15,6 +15,17 @@ import { AdSlot } from "@/components/signage/AdSlot";
 import { ServicesSection } from "@/components/signage/ServicesSection";
 import { Ticker } from "@/components/signage/Ticker";
 import { SignageFooter } from "@/components/signage/Footer";
+
+// ─── Branding types ─────────────────────────────────────────────────────────────
+
+interface StationBranding {
+  stationId: string;
+  stationName: string;
+  brandName: string | null;
+  brandColor: string | null;
+  brandLogoUrl: string | null;
+  brandFaviconUrl: string | null;
+}
 
 // ─── Loading / Error Skeleton ──────────────────────────────────────────────────
 
@@ -62,7 +73,56 @@ export default function DisplayPage() {
   const kiosk = useKioskMode();
   const polling = useDeparturesPolling(stationId);
 
-  // ─── Online/offline detection ────────────────────────────────────────────
+  // ─── Branding state ──────────────────────────────────────────────────────
+  const [branding, setBranding] = useState<StationBranding | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchBranding() {
+      try {
+        const res = await fetch(`/api/station/${stationId}/branding-public`);
+        if (!res.ok) return;
+        const data: StationBranding = await res.json();
+        if (!cancelled) {
+          setBranding(data);
+
+          // Inject CSS variable for brand color
+          if (data.brandColor) {
+            document.documentElement.style.setProperty(
+              "--brand-primary",
+              data.brandColor
+            );
+          }
+
+          // Update favicon if custom one provided
+          if (data.brandFaviconUrl) {
+            const existingFavicon = document.querySelector(
+              'link[rel="icon"]'
+            ) as HTMLLinkElement | null;
+            if (existingFavicon) {
+              existingFavicon.href = data.brandFaviconUrl;
+            } else {
+              const link = document.createElement("link");
+              link.rel = "icon";
+              link.href = data.brandFaviconUrl;
+              document.head.appendChild(link);
+            }
+          }
+        }
+      } catch {
+        // Silently fail — display works with default branding
+      }
+    }
+
+    fetchBranding();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [stationId]);
+
+  // ─── Online/offline detection ───────────────────────────────────────────
   function subscribeOnline(callback: () => void): () => void {
     window.addEventListener("online", callback);
     window.addEventListener("offline", callback);
@@ -91,6 +151,9 @@ export default function DisplayPage() {
     return <LoadingSkeleton />;
   }
 
+  // Resolve brand name: prefer custom brand name, fall back to "TerangaFlow"
+  const displayBrandName = branding?.brandName ?? undefined;
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -111,6 +174,8 @@ export default function DisplayPage() {
         stationCode={polling.stationCode}
         kiosk={kiosk}
         isOnline={isOnline}
+        brandName={displayBrandName}
+        brandLogoUrl={branding?.brandLogoUrl ?? undefined}
       />
 
       {/* ─── HEADER AD SLOT ─────────────────────────────────────────────── */}

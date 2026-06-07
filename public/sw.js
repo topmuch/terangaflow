@@ -1,7 +1,7 @@
 // ─── TerangaFlow Service Worker ─────────────────────────────────────────────
 // Strategy: StaleWhileRevalidate for API + NetworkFirst for navigation
 
-const CACHE_NAME = "terangaflow-v1";
+const CACHE_NAME = "terangaflow-v2";
 const STATIC_ASSETS = ["/pwa", "/pwa/", "/pwa/alerts", "/pwa/services", "/pwa/profile", "/manifest.json"];
 
 // ─── Install: Pre-cache critical pages ──────────────────────────────────────
@@ -44,10 +44,13 @@ self.addEventListener("fetch", (event) => {
   // Skip Chrome extension requests
   if (url.protocol === "chrome-extension:") return;
 
-  // ─── API calls: Stale-While-Revalidate ──────────────────────────────────
-  // Serve from cache immediately, then update in background
+  // ─── API calls: selective caching ───────────────────────────────────────
   if (url.pathname.startsWith("/api/departures") || url.pathname.startsWith("/api/public")) {
     event.respondWith(staleWhileRevalidate(request));
+    return;
+  }
+  // Skip all other API calls — let them pass through without caching
+  if (url.pathname.startsWith("/api/")) {
     return;
   }
 

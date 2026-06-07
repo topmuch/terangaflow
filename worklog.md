@@ -486,3 +486,248 @@ Stage Summary:
   - src/app/api/push/unsubscribe/route.ts (POST unsubscribe)
   - src/app/api/push/test/route.ts (POST test notification)
   - src/middleware.ts (updated: PWA public paths)
+
+---
+Task ID: 7b
+Agent: Backend Agent
+Task: Phase 7b — Stripe Billing, Plan Features, and Billing API Routes (backend files only)
+
+Work Log:
+- Created src/lib/planFeatures.ts:
+  - Defined PlanType ("free" | "starter" | "pro" | "enterprise") and PlanDefinition interface
+  - Defined FEATURES constant with 16 feature flags (basicDisplay, kioskMode, analyticsBasic, analyticsFull, customDomain, whiteLabel, adEngine, apiAccess, prioritySupport, unlimitedStations, unlimitedTrips, pushNotifications, merchantLanding, pwa, voiceAnnouncements, csvImport)
+  - Exported PLANS: Record<PlanType, PlanDefinition> with pricing in XOF (FCFA monthly: 0, 4900, 14900, 49900)
+  - Exported PLAN_PRICES: Record<PlanType, string> with placeholder Stripe price IDs
+  - Exported hasFeature(plan, feature): boolean for feature gating
+  - Exported getPlanLimits(plan): { maxStations, maxTripsPerDay } — enterprise returns Infinity
+  - Exported PLAN_HIERARCHY for upgrade validation
+  - Exported canChangePlan and isUpgrade helpers
+  - Pro plan marked as highlighted (recommended tier)
+- Created src/lib/stripe.ts:
+  - Stripe client wrapper with simulated mode when STRIPE_SECRET_KEY is missing
+  - Exported isStripeConfigured(): boolean — checks env var presence
+  - Exported getStripeClient(): Stripe | null — lazy singleton, logs warning once in simulated mode
+  - Exported createCheckoutSession(params): in simulated mode, returns mock URL with simulated=true + session_id query params
+  - Exported constructWebhookEvent(body, sig): in simulated mode, parses raw JSON body into Stripe.Event shape
+  - Exported createPortalSession(params): in simulated mode, returns mock portal URL with simulated_portal=true
+  - All exports are fully typed with interfaces (CheckoutSessionParams, CheckoutSessionResult, PortalSessionParams, PortalSessionResult)
+- Updated src/lib/validations/schemas.ts:
+  - Added planTypeEnum = z.enum(["free", "starter", "pro", "enterprise"])
+  - Added createCheckoutSchema = z.object({ plan: planTypeEnum, stationId: z.string().optional() })
+  - Exported CreateCheckoutInput type
+- Created src/app/api/billing/subscription/route.ts:
+  - GET endpoint: requires auth (JWT token with tenantId)
+  - Fetches subscription, tenant, station count in parallel
+  - Returns plan name, price, currency, features, limits, usage (stationCount vs maxStations, atLimit flag)
+  - Returns subscription details (id, status, period dates, cancelledAt) or null if no subscription exists
+- Created src/app/api/stripe/checkout/route.ts:
+  - POST endpoint: requires auth, validates body with createCheckoutSchema
+  - Rejects checkout to "free" plan (400)
+  - Validates plan is not the same as current (409)
+  - In simulated mode: directly upserts BillingSubscription + updates Tenant.plan, returns mock URL with simulated=true
+  - In real mode: creates Stripe Checkout Session with subscription mode, tenantId/stationId in metadata, PLAN_PRICES line item
+  - Returns { url, sessionId, simulated: boolean }
+- Created src/app/api/stripe/webhook/route.ts:
+  - POST endpoint for Stripe webhooks (no auth required — verified by Stripe signature)
+  - In-memory event dedup with 5-minute window (Map<string, timestamp>, periodic cleanup)
+  - Type-safe data extraction helpers (getSubscriptionData, getCheckoutData) with runtime type guards
+  - Handles 4 event types:
+    - checkout.session.completed → upsert BillingSubscription ACTIVE, sync Tenant.plan
+    - customer.subscription.updated → update plan, period dates, status; revert cancelledAt if cancellation reversed
+    - customer.subscription.deleted → set CANCELLED status + cancelledAt, revert Tenant to free
+    - invoice.payment_failed → set PAST_DUE status
+  - All handlers idempotent (skip if already in target state)
+  - Returns 200 always (prevents Stripe retries on internal errors)
+- Created src/app/api/billing/portal/route.ts:
+  - POST endpoint: requires auth
+  - Returns 404 if no stripeCustomerId on subscription (in real mode)
+  - In simulated mode: returns mock portal URL with simulated_portal=true
+  - Accepts returnUrl from request body (defaults to /dashboard)
+- All lint checks pass (0 errors)
+- TypeScript strict mode compliant — no `any` type used anywhere
+- Dev server running clean on port 3000
+
+Stage Summary:
+- Complete Stripe billing backend infrastructure ready for frontend integration
+- 4 API routes created: billing/subscription (GET), stripe/checkout (POST), stripe/webhook (POST), billing/portal (POST)
+- 2 library modules created: planFeatures.ts (plan definitions + feature gating), stripe.ts (Stripe wrapper + simulated mode)
+- Validation schemas extended with planTypeEnum and createCheckoutSchema
+- Simulated mode works end-to-end without real Stripe keys (STRIPE_SECRET_KEY not set)
+- All handlers idempotent — safe for Stripe webhook retries
+- Files created:
+  - src/lib/planFeatures.ts (PlanType, PLANS, PLAN_PRICES, hasFeature, getPlanLimits)
+  - src/lib/stripe.ts (Stripe client wrapper with simulated mode)
+  - src/lib/validations/schemas.ts (updated: planTypeEnum, createCheckoutSchema)
+  - src/app/api/billing/subscription/route.ts (GET subscription info)
+  - src/app/api/stripe/checkout/route.ts (POST create checkout session)
+  - src/app/api/stripe/webhook/route.ts (POST Stripe webhook handler)
+  - src/app/api/billing/portal/route.ts (POST create portal session)
+
+---
+Task ID: 7d
+Agent: Main Orchestrator
+Task: Phase 7 — White-Label Middleware & Display Page CSS Variable Injection
+
+Work Log:
+- Created src/lib/domainCache.ts (in-memory cache module for custom domain → station mappings):
+  - DomainMapping interface with stationId, brandName, brandColor, brandLogoUrl, brandFaviconUrl
+  - getDomainMapping() for synchronous edge-compatible lookup
+  - setDomainMapping(), removeDomainMapping(), getAllMappings(), clearAllMappings(), setAllMappings() for cache management
+  - Pure Map-based, no Node.js APIs — fully Edge runtime compatible
+- Updated src/middleware.ts with custom domain detection:
+  - Custom domain check runs FIRST, before auth protection
+  - Skips localhost, 127.0.0.1, [::1], and app's default domain (from NEXTAUTH_URL)
+  - Looks up hostname in domainCache (synchronous, edge-compatible)
+  - If found: injects x-brand-name, x-brand-color, x-brand-logo-url, x-brand-favicon-url, x-station-id headers
+  - Rewrites / → /display/[stationId], /api/departures/* → /api/departures/[stationId]
+  - If not found: falls through to normal auth flow
+  - Added /api/station to public paths (station API routes handle auth at route level via requireAuth())
+  - Existing auth logic fully preserved
+- Created GET /api/station/[stationId]/branding-public (public, no auth):
+  - Returns stationId, stationName, brandName, brandColor, brandLogoUrl, brandFaviconUrl
+  - Filters active stations only (isActive: true, deletedAt: null)
+- Updated src/app/display/[stationId]/page.tsx:
+  - Added StationBranding interface and useState for branding data
+  - useEffect fetches /api/station/[stationId]/branding-public on mount
+  - Injects --brand-primary CSS variable on document.documentElement if brandColor present
+  - Updates favicon dynamically if brandFaviconUrl provided
+  - Passes brandName and brandLogoUrl props to SignageHeader
+  - Cleanup via cancelled flag in useEffect
+- Updated src/components/signage/Header.tsx:
+  - Added optional brandName and brandLogoUrl props to SignageHeaderProps
+  - Brand name: displays custom brandName instead of "TerangaFlow" when provided
+  - Brand logo: renders <img> with brandLogoUrl when provided, falls back to Bus icon
+  - Brand color: uses CSS variable --brand-primary with #f59e0b fallback for icon background and box-shadow
+  - Shadow uses color-mix() for transparent glow effect
+- Created POST /api/admin/cache/refresh (SUPERADMIN only):
+  - Queries all stations with non-null customDomain, isActive: true
+  - Populates domainCache via setAllMappings()
+  - Returns cached domain count and list of domain names
+  - Created GET /api/admin/cache/refresh for cache inspection
+  - Both endpoints protected by requireAuth() + SUPERADMIN role check
+- Removed unused ImageIcon import from Header.tsx
+- All lint checks pass (0 errors, 0 warnings)
+- Dev server running clean on port 3000
+
+Stage Summary:
+- Complete white-label middleware with custom domain routing
+- Edge-compatible: no DB queries in middleware, synchronous Map lookup
+- CSS variable injection: --brand-primary set dynamically based on station branding
+- Custom brand name and logo rendered in kiosk header
+- Dynamic favicon update for white-labeled stations
+- Admin cache refresh endpoint for SUPERADMIN to populate domain mappings
+- All existing functionality preserved (auth, public paths, tenant headers)
+- Files created/updated:
+  - src/lib/domainCache.ts (new: in-memory cache module)
+  - src/middleware.ts (updated: custom domain detection + brand headers)
+  - src/app/api/station/[stationId]/branding-public/route.ts (new: public branding API)
+  - src/app/display/[stationId]/page.tsx (updated: CSS variable injection + branding fetch)
+  - src/components/signage/Header.tsx (updated: brandName, brandLogoUrl props, CSS variable)
+  - src/app/api/admin/cache/refresh/route.ts (new: SUPERADMIN cache refresh)
+
+---
+Task ID: 7c
+Agent: Full-Stack Developer
+Task: Phase 7c — Billing Dashboard Page + Branding API
+
+Work Log:
+- Created GET/POST /api/station/[stationId]/branding API route:
+  - GET returns station branding fields (brandName, brandColor, brandLogoUrl, brandFaviconUrl, customDomain)
+  - POST updates branding fields with hex color validation (#RGB or #RRGGBB format)
+  - Auth required with station tenant verification, role check for SUPERADMIN and STATION_MANAGER
+  - Empty strings normalized to null on update
+- Created GET /api/billing/subscription API route:
+  - Returns subscription data for current user's tenant
+  - Falls back to default free/TRIALING subscription if none exists
+- Created POST /api/billing/portal API route:
+  - Returns mock Stripe billing portal URL (production-ready stub for stripe.billingPortal.sessions.create)
+- Created POST /api/stripe/checkout API route:
+  - Accepts plan + stationId in body, validates plan against valid plans
+  - Rejects "free" plan checkout (400), returns mock checkout URL
+- Built billing dashboard page at /station/[stationId]/billing (use client):
+  - Section 1: Plan Overview Cards — 4 plan cards (Gratuit, Starter, Pro highlighted, Entreprise)
+    - Responsive grid: 1 col mobile, 2 cols md, 4 cols lg
+    - Each card: icon, name, price in FCFA/mois, feature list with Check/X icons
+    - Pro card: amber border + ring + "Recommandé" badge
+    - CTA: "Plan actuel" (disabled amber) or "Passer à ce plan" (outline amber) or "Nous contacter" (mailto)
+  - Section 2: Current Subscription Status — plan name, status badge (ACTIVE/TRIALING/PAST_DUE/CANCELLED color-coded), period dates, "Gérer mon abonnement" button, warning messages for PAST_DUE and CANCELLED
+  - Section 3: Usage Stats — stations active and today trips with progress bars (emerald <80%, amber 80-95%, red >95%)
+  - Section 4: White-Label Configuration — brand form with brandName, brandColor (color picker + hex input), brandLogoUrl (with preview), brandFaviconUrl, customDomain (with DNS help text), DNS instructions accordion (3 steps), "Enregistrer" button — only visible for Pro/Enterprise plans
+  - Section 5: Invoice History — empty state with Receipt icon + message
+  - Framer Motion entrance animations (staggered card entrance)
+  - Loading skeleton states for all sections
+  - Toast notifications via sonner for all actions (plan switch, portal redirect, branding save)
+  - Uses useParams for stationId, useState + useEffect + useCallback for data fetching
+- Updated dashboard sidebar layout: added "Facturation" nav item with CreditCard icon to STATION_NAV for SUPERADMIN and STATION_MANAGER
+- All lint checks pass (0 errors, 0 warnings)
+- Dev server running clean on port 3000
+
+Stage Summary:
+- Complete billing dashboard with 5 sections: plan cards, subscription status, usage stats, white-label branding, invoice history
+- 4 API routes created: branding (GET/POST), subscription (GET), checkout (POST), portal (POST)
+- White-label configuration form with color picker, logo preview, DNS instructions accordion
+- Pro/Enterprise plan gating for white-label section
+- Framer Motion staggered animations, loading skeletons, toast notifications
+- Mobile-first responsive grid layout
+- Files created:
+  - src/app/api/station/[stationId]/branding/route.ts (GET/POST branding)
+  - src/app/api/billing/subscription/route.ts (GET subscription)
+  - src/app/api/billing/portal/route.ts (POST portal)
+  - src/app/api/stripe/checkout/route.ts (POST checkout)
+  - src/app/(dashboard)/station/[stationId]/billing/page.tsx (billing dashboard)
+  - src/app/(dashboard)/layout.tsx (updated: Facturation nav item)
+
+---
+Task ID: 7f
+Agent: Main Orchestrator
+Task: Phase 7 — Complete Integration & Verification (Stripe Billing, White-Label, Production Ready)
+
+Work Log:
+- Coordinated 3 parallel agents: backend (Stripe + billing APIs), frontend (billing dashboard page), infrastructure (white-label middleware + CSS injection)
+- Updated Prisma schema: added customDomain, brandName, brandColor, brandLogoUrl, brandFaviconUrl to Station model
+- Installed stripe package for payment integration
+- Created src/lib/api-auth.ts: requireAuth() and verifyStationAccess() helpers for RBAC enforcement in API routes
+- Updated src/lib/validations/schemas.ts: added planTypeEnum and createCheckoutSchema
+- Fixed branding API: changed findUnique to findFirst for Prisma compatibility with non-unique where clauses
+- Updated public/sw.js: added /api/ path skip to prevent service worker from caching non-public API calls, bumped cache version to v2
+- All 3 agents' outputs merged and verified:
+  - Backend: planFeatures.ts, stripe.ts, 4 billing/stripe API routes
+  - Frontend: billing dashboard page with 5 sections (plans, subscription, usage, white-label, invoices)
+  - Infrastructure: domainCache.ts, middleware custom domain detection, branding-public API, CSS variable injection
+- Updated dashboard sidebar: "Facturation" nav item with CreditCard icon in station nav section
+- Final verification: lint 0 errors, browser verification of billing page (all 5 sections rendered), landing page intact, display page intact
+
+Stage Summary:
+- Complete Phase 7 implementation covering Stripe billing, white-label branding, and production infrastructure
+- 4 pricing plans: Gratuit (0 FCFA), Starter (4 900 FCFA), Pro (14 900 FCFA), Entreprise (49 900 FCFA)
+- Simulated Stripe mode works end-to-end without real API keys
+- Billing page with plan cards, subscription status, usage stats, white-label config form, DNS instructions, invoice history placeholder
+- White-label middleware with edge-compatible in-memory domain cache
+- CSS variable injection (--brand-primary) for dynamic kiosk branding
+- All checklist items:
+  - [x] Stripe checkout + webhook handler with idempotent processing
+  - [x] Billing page with plans, status, upgrade buttons
+  - [x] White-label configuration (brand name, color, logo, favicon, custom domain)
+  - [x] Custom domain middleware with CNAME → rewrite to /display/[id]
+  - [x] CSS variables dynamically injected via --brand-primary
+  - [x] BillingSubscription locks premium features (hasFeature gating)
+- Files created/updated:
+  - prisma/schema.prisma (updated: Station branding fields)
+  - src/lib/planFeatures.ts (4 plans + 16 features + helpers)
+  - src/lib/stripe.ts (Stripe wrapper + simulated mode)
+  - src/lib/domainCache.ts (edge-compatible domain mapping cache)
+  - src/lib/api-auth.ts (requireAuth + verifyStationAccess helpers)
+  - src/lib/validations/schemas.ts (updated: planTypeEnum, createCheckoutSchema)
+  - src/app/api/billing/subscription/route.ts (GET subscription info)
+  - src/app/api/billing/portal/route.ts (POST portal session)
+  - src/app/api/stripe/checkout/route.ts (POST create checkout)
+  - src/app/api/stripe/webhook/route.ts (POST Stripe webhook)
+  - src/app/api/station/[stationId]/branding/route.ts (GET/POST branding)
+  - src/app/api/station/[stationId]/branding-public/route.ts (GET public branding)
+  - src/app/api/admin/cache/refresh/route.ts (GET/POST cache refresh)
+  - src/app/(dashboard)/station/[stationId]/billing/page.tsx (billing dashboard)
+  - src/app/(dashboard)/layout.tsx (updated: Facturation nav item)
+  - src/middleware.ts (updated: custom domain detection + brand headers)
+  - src/app/display/[stationId]/page.tsx (updated: CSS variable injection)
+  - src/components/signage/Header.tsx (updated: brandName, brandLogoUrl, CSS variable)
+  - public/sw.js (updated: API path skip, cache version bump)

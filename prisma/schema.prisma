@@ -103,18 +103,18 @@ model AnnouncementQueue {
 }
 
 model BillingSubscription {
-  id                   String    @id @default(cuid())
-  tenantId             String
-  stripeCustomerId     String?   @unique
-  stripeSubscriptionId String?   @unique
-  plan                 String    @default("free")
-  status               String    @default("TRIALING")
-  currentPeriodStart   DateTime?
-  currentPeriodEnd     DateTime?
-  cancelledAt          DateTime?
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime
-  tenant               Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  id                       String    @id @default(cuid())
+  tenantId                 String
+  stripeCustomerId         String?   @unique
+  stripeSubscriptionId     String?   @unique
+  plan                     String    @default("free")
+  status                   String    @default("TRIALING")
+  currentPeriodStart       DateTime?
+  currentPeriodEnd         DateTime?
+  cancelledAt              DateTime?
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime
+  tenant                   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([status])
   @@index([tenantId])
@@ -211,6 +211,12 @@ model Station {
   createdAt         DateTime            @default(now())
   updatedAt         DateTime
   deletedAt         DateTime?
+  // White-label branding fields
+  customDomain      String?             @unique
+  brandName         String?
+  brandColor        String?             @default("#f59e0b")
+  brandLogoUrl      String?
+  brandFaviconUrl   String?
   adCampaigns        AdCampaign[]
   announcementQueues AnnouncementQueue[]
   lines              Line[]
@@ -226,6 +232,7 @@ model Station {
   @@index([isActive])
   @@index([code])
   @@index([tenantId])
+  @@index([customDomain])
 }
 
 model Tenant {

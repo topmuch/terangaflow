@@ -141,6 +141,12 @@ const STATION_NAV: NavItem[] = [
     icon: Megaphone,
     roles: ["SUPERADMIN", "STATION_MANAGER"],
   },
+  {
+    title: "Facturation",
+    href: "/station/_SID_/billing",
+    icon: CreditCard,
+    roles: ["SUPERADMIN", "STATION_MANAGER"],
+  },
 ];
 
 const ADMIN_NAV: NavItem[] = [

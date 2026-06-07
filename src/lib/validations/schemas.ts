@@ -282,3 +282,14 @@ export const trackImpressionSchema = z.object({
 });
 
 export type TrackImpressionInput = z.infer<typeof trackImpressionSchema>;
+
+// ─── Billing / Plans ──────────────────────────────────────────────────────────
+
+export const planTypeEnum = z.enum(["free", "starter", "pro", "enterprise"]);
+
+export const createCheckoutSchema = z.object({
+  plan: planTypeEnum,
+  stationId: z.string().optional(),
+});
+
+export type CreateCheckoutInput = z.infer<typeof createCheckoutSchema>;
