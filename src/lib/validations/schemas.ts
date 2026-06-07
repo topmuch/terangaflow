@@ -78,3 +78,38 @@ export const updateTickerSchema = z.object({
 
 export type CreateTickerInput = z.infer<typeof createTickerSchema>;
 export type UpdateTickerInput = z.infer<typeof updateTickerSchema>;
+
+// ─── Trip Transition ────────────────────────────────────────────────────────────
+
+export const tripTransitionSchema = z.object({
+  tripId: z.string().min(1, "L'identifiant du trajet est requis"),
+  toStatus: tripStatusEnum,
+  reason: z.string().max(500).optional(),
+  platform: z.string().max(10).optional(),
+});
+
+export type TripTransitionInput = z.infer<typeof tripTransitionSchema>;
+
+// ─── Notification Rule ──────────────────────────────────────────────────────────
+
+export const channelEnum = z.enum(["voice", "display", "push", "all"]);
+
+export const createNotificationRuleSchema = z.object({
+  name: z
+    .string()
+    .min(2, "Le nom doit contenir au moins 2 caractères")
+    .max(120),
+  triggerFrom: tripStatusEnum,
+  triggerTo: tripStatusEnum,
+  channel: channelEnum.default("voice"),
+  template: z
+    .string()
+    .min(3, "Le template doit contenir au moins 3 caractères")
+    .max(500),
+  repeatEveryMin: z.number().int().min(0).max(60).default(0),
+  repeatMaxTimes: z.number().int().min(0).max(20).default(0),
+  priority: z.number().int().min(0).max(100).default(0),
+  isActive: z.boolean().default(true),
+});
+
+export type CreateNotificationRuleInput = z.infer<typeof createNotificationRuleSchema>;

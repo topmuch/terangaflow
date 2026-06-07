@@ -18,6 +18,7 @@ import {
   Clock,
   MessageSquare,
   Upload,
+  Volume2,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -120,6 +121,12 @@ const STATION_NAV: NavItem[] = [
     href: "/station/_SID_/trips/import",
     icon: Upload,
     roles: ["SUPERADMIN", "STATION_MANAGER", "TRANSPORTER"],
+  },
+  {
+    title: "Notifications",
+    href: "/station/_SID_/notifications",
+    icon: Volume2,
+    roles: ["SUPERADMIN", "STATION_MANAGER"],
   },
 ];
 

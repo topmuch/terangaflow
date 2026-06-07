@@ -63,10 +63,13 @@ model Station {
   updatedAt DateTime @updatedAt
   deletedAt DateTime?
 
-  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  users     User[]
-  lines     Line[]
-  tickers   TickerMessage[]
+  tenant           Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  users            User[]
+  lines            Line[]
+  tickers          TickerMessage[]
+  notificationRules NotificationRule[]
+  transitionLogs   TransitionLog[]
+  announcements    AnnouncementQueue[]
 
   @@index([tenantId])
   @@index([code])
@@ -158,11 +161,84 @@ model Trip {
   updatedAt       DateTime @updatedAt
   deletedAt       DateTime?
 
-  line            Line     @relation(fields: [lineId], references: [id], onDelete: Cascade)
+  line            Line             @relation(fields: [lineId], references: [id], onDelete: Cascade)
+  transitionLogs  TransitionLog[]
 
   @@index([lineId])
   @@index([departureTime])
   @@index([status])
+}
+
+// ─── Notification Rule (triggers on state transitions) ────────────────────────────
+
+model NotificationRule {
+  id            String   @id @default(cuid())
+  name          String
+  stationId     String
+  triggerFrom   String                           // e.g. "SCHEDULED"
+  triggerTo     String                           // e.g. "BOARDING"
+  channel       String   @default("voice")      // voice, display, push, all
+  template      String                           // message with {destination}, {platform}, {delay}
+  repeatEveryMin Int      @default(0)             // 0 = no repeat; >0 = repeat every N minutes
+  repeatMaxTimes Int      @default(0)             // 0 = unlimited
+  priority      Int      @default(0)             // higher = play first
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+
+  station        Station  @relation(fields: [stationId], references: [id], onDelete: Cascade)
+
+  @@index([stationId])
+  @@index([triggerFrom, triggerTo])
+  @@index([isActive])
+}
+
+// ─── Transition Log (audit trail for every state change) ──────────────────────
+
+model TransitionLog {
+  id            String   @id @default(cuid())
+  tripId        String
+  stationId     String
+  fromStatus    String
+  toStatus      String
+  triggeredBy   String?                          // userId or "system"
+  reason        String?
+  createdAt     DateTime @default(now())
+
+  trip          Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  station       Station  @relation(fields: [stationId], references: [id], onDelete: Cascade)
+
+  @@index([tripId])
+  @@index([stationId])
+  @@index([createdAt])
+}
+
+// ─── Announcement Queue (persistent queue for voice/display) ──────────────────
+
+model AnnouncementQueue {
+  id              String    @id @default(cuid())
+  stationId       String
+  tripId          String?
+  ruleId          String?
+  channel         String    @default("voice")
+  message         String
+  renderedMessage String?                            // template filled in
+  priority        Int       @default(0)
+  status          String    @default("pending")      // pending, playing, completed, failed, skipped
+  scheduledAt     DateTime
+  retryCount      Int       @default(0)
+  maxRetries      Int       @default(3)
+  playedAt        DateTime?
+  error           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  station         Station?  @relation(fields: [stationId], references: [id], onDelete: Cascade)
+
+  @@index([stationId, status])
+  @@index([scheduledAt])
+  @@index([priority])
 }
 
 // ─── Ticker Message (display banner) ────────────────────────────────────────────

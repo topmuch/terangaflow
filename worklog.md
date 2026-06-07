@@ -136,3 +136,61 @@ Stage Summary:
 - Additional station management built: trips CRUD, lines CRUD, tickers CRUD, CSV import
 - Project is ready for next phase development
 - Demo station: /display/cmq3355jq0002oxdyh8dnlfku
+
+---
+Task ID: 4
+Agent: Main Orchestrator
+Task: Phase 3 — Trip State Machine, Notification Dispatcher, Voice Router, Dashboard UI
+
+Work Log:
+- Updated Prisma schema with 3 new models: NotificationRule (trigger-based rules with templates), TransitionLog (audit trail), AnnouncementQueue (persistent queue with retries)
+- Added relations: Station hasMany NotificationRule, TransitionLog, AnnouncementQueue; Trip hasMany TransitionLog
+- Created src/lib/tripStateMachine.ts with strict state graph:
+  - TRANSITION_GRAPH: 9 valid edges (SCHEDULED→BOARDING/DELAYED/CANCELLED, BOARDING→DEPARTED/DELAYED/CANCELLED, DELAYED→BOARDING/CANCELLED, DEPARTED→ARRIVED)
+  - Terminal states: CANCELLED, ARRIVED (no transitions out)
+  - validateTransition() returns edge + error for blocked transitions
+  - getAvailableTransitions() returns valid next states for UI buttons
+  - renderTemplate() fills {destination}, {platform}, {delay}, {operator}, {lineCode}
+- Created src/lib/notificationDispatcher.ts:
+  - dispatchNotifications() matches rules, renders templates, enqueues announcements
+  - Supports repeat scheduling (repeatEveryMin, repeatMaxTimes)
+  - fetchDueAnnouncements() locks and returns pending items for playback
+  - completeAnnouncement() / failAnnouncement() with retry logic
+- Created 3 API routes:
+  - POST /api/trips/[tripId]/transition — validates SM, updates trip, creates log, dispatches notifications
+  - GET/POST /api/station/[stationId]/notifications/rules — rules CRUD
+  - GET/POST /api/station/[stationId]/announcements — queue management
+- Updated src/lib/validations/schemas.ts with tripTransitionSchema, createNotificationRuleSchema
+- Created src/hooks/useVoiceSpeaker.ts:
+  - Web Speech API (SpeechSynthesis) with fr-FR, rate 0.9, volume 1.0
+  - Ding-Dong chime via AudioContext (880Hz ding → 660Hz dong) using OscillatorNode + GainNode
+  - Sequential queue processor (no overlap), SSR-safe
+  - Exposes: { isSpeaking, queueLength, speak, stop }
+- Built notifications control center UI at /station/[stationId]/notifications (1328 lines):
+  - Section 1: Trip State Control — trips list with dynamic transition buttons from getAvailableTransitions()
+  - Section 2: Notification Rules Management — cards + create dialog with template editor
+  - Section 3: Announcement Queue Monitor — auto-polling every 15s, status badges
+  - Section 4: Real-Time Transition Logs — session-local log with Framer Motion slide-in
+- Updated sidebar: added "Notifications" nav item with Volume2 icon
+- Seeded 5 notification rules (Embarquement ouvert, Retard signalé, Annulation départ, Départ effectif, Reprise embarquement)
+- All lint checks pass (0 errors)
+- Browser verification: notifications page renders all 4 sections with correct trip list, proper transition buttons per state, empty rules/queue/logs states
+
+Stage Summary:
+- Complete state machine with strict validation — blocked transitions return 409
+- Transition SCHEDULED→BOARDING triggers boarding voice rule
+- DELAYED repeat rule creates announcements every 5min (3 max)
+- All announcements persisted in AnnouncementQueue with retry logic
+- Voice speaker hook ready for client-side TTS playback
+- Files created:
+  - src/lib/tripStateMachine.ts (139 lines)
+  - src/lib/notificationDispatcher.ts (260 lines)
+  - src/hooks/useVoiceSpeaker.ts (162 lines)
+  - src/app/api/trips/[tripId]/transition/route.ts (148 lines)
+  - src/app/api/station/[stationId]/notifications/rules/route.ts (82 lines)
+  - src/app/api/station/[stationId]/announcements/route.ts (97 lines)
+  - src/app/(dashboard)/station/[stationId]/notifications/page.tsx (1328 lines)
+  - prisma/seed-rules.ts (132 lines)
+  - prisma/schema.prisma (updated: 10 models)
+  - src/lib/validations/schemas.ts (updated)
+  - src/app/(dashboard)/layout.tsx (updated: Volume2 nav item)
