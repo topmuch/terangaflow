@@ -152,20 +152,20 @@
 }
 
 /* Respect reduced motion */
-/* ─── Rose Sidebar Theme ─────────────────────────────────────────────────── */
+/* ─── Rose Sidebar Theme (Shocking Rose #FC0FC0) ──────────────────── */
 .sidebar-rose {
-  --sidebar-bg: oklch(0.97 0.015 350);
-  --sidebar-border: oklch(0.92 0.02 350);
-  --sidebar-accent: oklch(0.95 0.02 350);
-  --sidebar-primary: oklch(0.55 0.24 293);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-bg: linear-gradient(180deg, #fef1f7 0%, #fce4ec 50%, #f8bbd0 100%);
+  --sidebar-border: #f9a8c9;
+  --sidebar-accent: #fce4ec;
+  --sidebar-primary: #d63384;
+  --sidebar-primary-foreground: #ffffff;
 }
 .dark .sidebar-rose {
-  --sidebar-bg: oklch(0.22 0.04 350);
-  --sidebar-border: oklch(0.28 0.05 350);
-  --sidebar-accent: oklch(0.28 0.04 350);
-  --sidebar-primary: oklch(0.65 0.24 293);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-bg: linear-gradient(180deg, #2d0a1e 0%, #3d1028 50%, #4a1533 100%);
+  --sidebar-border: #6b2049;
+  --sidebar-accent: #3d1028;
+  --sidebar-primary: #fc0fc0;
+  --sidebar-primary-foreground: #ffffff;
 }
 
 @media (prefers-reduced-motion: reduce) {

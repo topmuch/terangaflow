@@ -42,46 +42,39 @@ const itemVariants = {
   show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" } },
 } as const;
 
-// ─── Stat Card ────────────────────────────────────────────────────────────────
+// ─── Gradient Stat Card ─────────────────────────────────────────────────────────
 
 interface StatCardProps {
   title: string;
   value: string;
   description: string;
   icon: React.ComponentType<{ className?: string }>;
-  iconColor?: string;
+  gradient: string;
   trend?: string;
   trendUp?: boolean;
 }
 
-function StatCard({ title, value, description, icon: Icon, iconColor, trend, trendUp }: StatCardProps) {
+function StatCard({ title, value, description, icon: Icon, gradient, trend, trendUp }: StatCardProps) {
   return (
     <motion.div variants={itemVariants}>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">
-            {title}
-          </CardTitle>
-          <div className={cn("flex h-9 w-9 items-center justify-center rounded-lg", iconColor ?? "bg-amber-500/10 text-amber-600 dark:text-amber-400")}>
-            <Icon className="h-4 w-4" />
+      <div className={cn("rounded-xl p-5 text-white shadow-lg", gradient)}>
+        <div className="flex items-center justify-between mb-4">
+          <span className="text-sm font-medium text-white/80">{title}</span>
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm">
+            <Icon className="h-5 w-5 text-white" />
           </div>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-baseline gap-2">
-            <div className="text-2xl font-bold">{value}</div>
-            {trend && (
-              <Badge
-                variant="secondary"
-                className={`text-xs gap-1 ${trendUp ? "text-emerald-600 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-500/10" : "text-destructive bg-destructive/10"}`}
-              >
-                {trendUp ? <ArrowUpRight className="h-3 w-3" /> : null}
-                {trend}
-              </Badge>
-            )}
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">{description}</p>
-        </CardContent>
-      </Card>
+        </div>
+        <div className="flex items-baseline gap-2">
+          <div className="text-3xl font-bold">{value}</div>
+          {trend && (
+            <span className={cn("text-xs font-medium px-1.5 py-0.5 rounded-full", trendUp ? "bg-white/20 text-white" : "bg-white/20 text-white")}>
+              {trendUp ? <ArrowUpRight className="h-3 w-3 inline mr-0.5" /> : null}
+              {trend}
+            </span>
+          )}
+        </div>
+        <p className="text-xs text-white/70 mt-1">{description}</p>
+      </div>
     </motion.div>
   );
 }
@@ -129,39 +122,39 @@ export default function DashboardPage() {
         </p>
       </motion.div>
 
-      {/* Stats grid */}
+      {/* Stats grid — gradient colored cards */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           title="Départs aujourd'hui"
           value="47"
           description="+12% vs hier"
           icon={Bus}
-          iconColor="bg-blue-500/10 text-blue-600 dark:text-blue-400"
+          gradient="bg-gradient-to-br from-emerald-500 to-emerald-700"
           trend="+12%"
           trendUp
         />
         <StatCard
           title="Passagers estimés"
           value="1,284"
-          description="Données mises à jour en temps réel"
+          description="Données temps réel"
           icon={Users}
-          iconColor="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+          gradient="bg-gradient-to-br from-orange-500 to-red-500"
           trend="+8%"
           trendUp
         />
         <StatCard
           title="Lignes actives"
           value="12"
-          description="2 lignes en maintenance"
+          description="2 en maintenance"
           icon={MapPin}
-          iconColor="bg-violet-500/10 text-violet-600 dark:text-violet-400"
+          gradient="bg-gradient-to-br from-violet-500 to-purple-700"
         />
         <StatCard
           title="Revenus publicitaires"
-          value="245K FCFA"
-          description="Ce mois — objectif 400K"
+          value="245K"
+          description="Objectif 400K ce mois"
           icon={TrendingUp}
-          iconColor="bg-orange-500/10 text-orange-600 dark:text-orange-400"
+          gradient="bg-gradient-to-br from-blue-500 to-cyan-600"
           trend="+18%"
           trendUp
         />
@@ -191,8 +184,8 @@ export default function DashboardPage() {
                     key={index}
                     className="flex items-center gap-4 rounded-lg border px-4 py-3 transition-colors hover:bg-muted/50"
                   >
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-500/10">
-                      <Bus className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-rose-500/10">
+                      <Bus className="h-5 w-5 text-rose-600 dark:text-rose-400" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium truncate">
@@ -291,10 +284,10 @@ export default function DashboardPage() {
           </Card>
 
           {/* Station info */}
-          <Card className="bg-gradient-to-br from-amber-500/5 to-orange-500/5 border-amber-500/20">
+          <Card className="bg-gradient-to-br from-rose-500/10 to-pink-500/10 border-rose-500/20">
             <CardContent className="pt-6">
               <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-500 text-white">
                   <MapPin className="h-5 w-5" />
                 </div>
                 <div>
