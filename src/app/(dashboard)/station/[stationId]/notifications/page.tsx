@@ -50,6 +50,7 @@ import {
 
 import { TRIP_STATUS_CONFIG, type TripStatus } from "@/types/signage";
 import { NotificationCenter } from "@/components/dashboard/NotificationCenter";
+import { DepartureAlertPanel } from "@/components/dashboard/DepartureAlertPanel";
 import {
   getAvailableTransitions,
   isTerminalState,
@@ -859,6 +860,11 @@ export default function NotificationsControlCenterPage() {
           file de diffusion en temps réel
         </p>
       </div>
+
+      <Separator />
+
+      {/* ─── Alerte Départ Auto (Ding-Dong + TTS) ─── */}
+      <DepartureAlertPanel stationId={stationId} />
 
       <Separator />
 
