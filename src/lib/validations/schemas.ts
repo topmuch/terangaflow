@@ -86,6 +86,7 @@ export const tripTransitionSchema = z.object({
   toStatus: tripStatusEnum,
   reason: z.string().max(500).optional(),
   platform: z.string().max(10).optional(),
+  delayMinutes: z.number().int().min(0).max(480).optional(),
 });
 
 export type TripTransitionInput = z.infer<typeof tripTransitionSchema>;

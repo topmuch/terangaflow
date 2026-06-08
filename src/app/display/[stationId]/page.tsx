@@ -16,6 +16,7 @@ import { ServicesSection } from "@/components/signage/ServicesSection";
 import { Ticker } from "@/components/signage/Ticker";
 import { SignageFooter } from "@/components/signage/Footer";
 import { KioskAudioPlayer } from "@/components/signage/KioskAudioPlayer";
+import { AutoAnnouncer } from "@/components/signage/AutoAnnouncer";
 
 // ─── Branding types ─────────────────────────────────────────────────────────────
 
@@ -227,6 +228,9 @@ export default function DisplayPage() {
 
       {/* Kiosk Audio Player — receives WS broadcasts and plays ding-dong + TTS */}
       <KioskAudioPlayer stationId={stationId} />
+
+      {/* Auto Announcer — polls for pending announcements and plays them */}
+      <AutoAnnouncer stationId={stationId} />
     </motion.div>
   );
 }

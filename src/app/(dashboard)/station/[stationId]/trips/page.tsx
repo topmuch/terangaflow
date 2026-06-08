@@ -294,19 +294,10 @@ export default function StationTripsPage() {
 
   // ─── Update status ───────────────────────────────────────────────────────────
 
-  async function handleUpdateStatus(tripId: string, status: string) {
-    try {
-      const res = await fetch(`/api/station/${stationId}/trips/${tripId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
-      });
-      if (!res.ok) throw new Error("Erreur lors de la mise à jour");
-      toast.success("Statut mis à jour avec succès");
-      fetchTrips();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erreur inconnue");
-    }
+  async function handleUpdateStatus(tripId: string, _status: string, _delayMinutes?: number, _reason?: string) {
+    // The TripTable handles the actual API call via /api/trips/[tripId]/transition
+    // This callback is called after success to refresh the list
+    fetchTrips();
   }
 
   // ─── Render ──────────────────────────────────────────────────────────────────

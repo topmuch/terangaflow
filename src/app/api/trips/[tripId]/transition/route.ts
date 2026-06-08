@@ -46,7 +46,7 @@ export async function POST(
       );
     }
 
-    const { toStatus, reason, platform } = parsed.data;
+    const { toStatus, reason, platform, delayMinutes: reqDelayMinutes } = parsed.data;
 
     // ─── Fetch trip with line (line has stationId) ──────────────────────────────
     const trip = await db.trip.findFirst({
@@ -85,16 +85,16 @@ export async function POST(
     }
 
     // ─── Compute delay in minutes (for notification template) ────────────────
-    const now = new Date();
-    const delayMinutes = Math.max(
+    const delayMinutes = reqDelayMinutes ?? Math.max(
       0,
-      Math.round((now.getTime() - trip.departureTime.getTime()) / 60000)
+      Math.round((new Date().getTime() - trip.departureTime.getTime()) / 60000)
     );
 
     // ─── Update trip status (and platform if provided) ────────────────────────
     const updateData: Record<string, unknown> = {
       status: toStatus,
       updatedAt: new Date(),
+      delayMinutes: delayMinutes,
     };
     if (platform !== undefined) {
       updateData.platform = platform;

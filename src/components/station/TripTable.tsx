@@ -10,6 +10,14 @@ import {
   MapPin,
   User,
   CheckCircle2,
+  Volume2,
+  Play,
+  AlertCircle,
+  Loader2,
+  PlaneTakeoff,
+  PlaneLanding,
+  XCircle,
+  Timer,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -30,9 +38,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TRIP_STATUS_CONFIG, TRIP_STATUS } from "@/types/signage";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 // ─── Types ──────────────────────────────────────────────────────────────────────
 
@@ -51,7 +68,90 @@ interface TripItem {
 interface TripTableProps {
   stationId: string;
   trips: TripItem[];
-  onUpdateStatus?: (tripId: string, status: string, reason?: string) => void;
+  onUpdateStatus?: (tripId: string, status: string, delayMinutes?: number, reason?: string) => void;
+}
+
+// ─── Quick Action Buttons Config ─────────────────────────────────────────────────
+
+interface QuickAction {
+  status: string;
+  label: string;
+  icon: typeof Volume2;
+  color: string;           // bg color
+  hoverColor: string;      // hover bg color
+  textColor: string;       // text color
+  needsDelay: boolean;
+  needsReason: boolean;
+}
+
+const QUICK_ACTIONS: Record<string, QuickAction> = {
+  BOARDING: {
+    status: "BOARDING",
+    label: "Embarquement",
+    icon: Volume2,
+    color: "bg-blue-600",
+    hoverColor: "hover:bg-blue-700",
+    textColor: "text-white",
+    needsDelay: false,
+    needsReason: false,
+  },
+  DELAYED: {
+    status: "DELAYED",
+    label: "Retard",
+    icon: Timer,
+    color: "bg-amber-500",
+    hoverColor: "hover:bg-amber-600",
+    textColor: "text-white",
+    needsDelay: true,
+    needsReason: false,
+  },
+  DEPARTED: {
+    status: "DEPARTED",
+    label: "Parti",
+    icon: PlaneTakeoff,
+    color: "bg-emerald-600",
+    hoverColor: "hover:bg-emerald-700",
+    textColor: "text-white",
+    needsDelay: false,
+    needsReason: false,
+  },
+  CANCELLED: {
+    status: "CANCELLED",
+    label: "Annuler",
+    icon: XCircle,
+    color: "bg-red-600",
+    hoverColor: "hover:bg-red-700",
+    textColor: "text-white",
+    needsDelay: false,
+    needsReason: true,
+  },
+  ARRIVED: {
+    status: "ARRIVED",
+    label: "Arrivé",
+    icon: PlaneLanding,
+    color: "bg-gray-500",
+    hoverColor: "hover:bg-gray-600",
+    textColor: "text-white",
+    needsDelay: false,
+    needsReason: false,
+  },
+};
+
+// Get valid quick actions for a given current status
+function getQuickActionsForStatus(currentStatus: string): QuickAction[] {
+  const upper = currentStatus.toUpperCase();
+  switch (upper) {
+    case "SCHEDULED":
+      return [QUICK_ACTIONS.BOARDING, QUICK_ACTIONS.DELAYED, QUICK_ACTIONS.CANCELLED];
+    case "BOARDING":
+      return [QUICK_ACTIONS.DEPARTED, QUICK_ACTIONS.DELAYED, QUICK_ACTIONS.CANCELLED];
+    case "DELAYED":
+      return [QUICK_ACTIONS.BOARDING, QUICK_ACTIONS.CANCELLED];
+    case "DEPARTED":
+      return [QUICK_ACTIONS.ARRIVED];
+    default:
+      return [];
+  }
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────────
@@ -101,18 +201,210 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+// ─── Delay Dialog ───────────────────────────────────────────────────────────────
+
+function DelayDialog({
+  open,
+  onConfirm,
+  onCancel,
+  loading,
+}: {
+  open: boolean;
+  onConfirm: (minutes: number) => void;
+  onCancel: () => void;
+  loading: boolean;
+}) {
+  const [minutes, setMinutes] = useState("15");
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onCancel()}>
+      <DialogContent className="sm:max-w-[380px]">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-amber-600">
+            <Timer className="h-5 w-5" />
+            Durée du retard
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 pt-2">
+          <div className="space-y-2">
+            <Label htmlFor="delay-minutes">Retard (en minutes)</Label>
+            <Input
+              id="delay-minutes"
+              type="number"
+              min={1}
+              max={180}
+              value={minutes}
+              onChange={(e) => setMinutes(e.target.value)}
+              placeholder="Ex: 15"
+              autoFocus
+            />
+          </div>
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={onCancel} className="flex-1" disabled={loading}>
+              Annuler
+            </Button>
+            <Button
+              onClick={() => {
+                const parsed = parseInt(minutes);
+                if (parsed > 0) {
+                  onConfirm(parsed);
+                }
+              }}
+              disabled={loading || !minutes || parseInt(minutes) < 1}
+              className="flex-1 bg-amber-500 hover:bg-amber-600 text-white"
+            >
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <AlertCircle className="h-4 w-4" />}
+              Confirmer le retard
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Reason Dialog ─────────────────────────────────────────────────────────────
+
+function ReasonDialog({
+  open,
+  onConfirm,
+  onCancel,
+  loading,
+  title,
+}: {
+  open: boolean;
+  onConfirm: (reason: string) => void;
+  onCancel: () => void;
+  loading: boolean;
+  title: string;
+}) {
+  const [reason, setReason] = useState("");
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onCancel()}>
+      <DialogContent className="sm:max-w-[380px]">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-red-600">
+            <AlertCircle className="h-5 w-5" />
+            {title}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 pt-2">
+          <div className="space-y-2">
+            <Label htmlFor="reason-text">Raison (obligatoire)</Label>
+            <Input
+              id="reason-text"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Ex: Véhicule en panne"
+              autoFocus
+            />
+          </div>
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={onCancel} className="flex-1" disabled={loading}>
+              Annuler
+            </Button>
+            <Button
+              onClick={() => {
+                if (reason.trim()) {
+                  onConfirm(reason.trim());
+                }
+              }}
+              disabled={loading || !reason.trim()}
+              className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+            >
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+              Confirmer
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Quick Action Button ────────────────────────────────────────────────────────
+
+function QuickActionButton({
+  action,
+  onClick,
+  disabled,
+  compact,
+}: {
+  action: QuickAction;
+  onClick: () => void;
+  disabled: boolean;
+  compact?: boolean;
+}) {
+  const Icon = action.icon;
+
+  if (compact) {
+    return (
+      <Button
+        size="icon"
+        variant="ghost"
+        onClick={onClick}
+        disabled={disabled}
+        className={cn(
+          "h-8 w-8 min-w-[32px]",
+          !disabled && action.color,
+          !disabled && action.textColor
+        )}
+        title={action.label}
+      >
+        {disabled ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        ) : (
+          <Icon className="h-3.5 w-3.5" />
+        )}
+      </Button>
+    );
+  }
+
+  return (
+    <Button
+      size="sm"
+      variant="ghost"
+      onClick={onClick}
+      disabled={disabled}
+      className={cn(
+        "h-8 gap-1.5 px-3 text-xs font-medium border",
+        !disabled && action.color,
+        !disabled && action.textColor,
+        !disabled && "border-transparent shadow-sm"
+      )}
+    >
+      {disabled ? (
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+      ) : (
+        <Icon className="h-3.5 w-3.5" />
+      )}
+      {action.label}
+    </Button>
+  );
+}
+
 // ─── Mobile Trip Card ──────────────────────────────────────────────────────────
 
 function TripCard({
   trip,
   onUpdateStatus,
   onDelete,
+  transitionLoading,
+  showDelayDialog,
+  showReasonDialog,
+  pendingAction,
 }: {
   trip: TripItem;
-  onUpdateStatus?: (tripId: string, status: string) => void;
+  onUpdateStatus?: (tripId: string, status: string, delayMinutes?: number, reason?: string) => void;
   onDelete?: (tripId: string) => void;
+  transitionLoading: boolean;
+  showDelayDialog: boolean;
+  showReasonDialog: boolean;
+  pendingAction: string | null;
 }) {
   const statusConfig = getStatusConfig(trip.status);
+  const quickActions = getQuickActionsForStatus(trip.status);
 
   return (
     <motion.div
@@ -203,6 +495,38 @@ function TripCard({
             </div>
           </div>
 
+          {/* Quick Action Buttons */}
+          {quickActions.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {quickActions.map((action) => (
+                <QuickActionButton
+                  key={action.status}
+                  action={action}
+                  onClick={() => {
+                    if (action.needsDelay) {
+                      // Will be handled by parent dialog state
+                      onUpdateStatus?.(trip.id, action.status);
+                    } else if (action.needsReason) {
+                      onUpdateStatus?.(trip.id, action.status);
+                    } else {
+                      onUpdateStatus?.(trip.id, action.status);
+                    }
+                  }}
+                  disabled={transitionLoading && pendingAction === action.status}
+                  compact={false}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Audio indicator */}
+          {transitionLoading && pendingAction && (
+            <div className="mt-2 flex items-center gap-2 rounded-md bg-violet-50 px-2.5 py-1.5 text-xs text-violet-700 dark:bg-violet-500/10 dark:text-violet-300">
+              <Volume2 className="h-3 w-3 animate-pulse" />
+              Annonce en cours de génération...
+            </div>
+          )}
+
           {/* Notes */}
           {trip.notes && (
             <p className="mt-2 rounded-md bg-muted px-2.5 py-1.5 text-xs text-muted-foreground">
@@ -243,6 +567,12 @@ function EmptyState() {
 
 export default function TripTable({ stationId, trips, onUpdateStatus }: TripTableProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [transitioningId, setTransitioningId] = useState<string | null>(null);
+  const [transitioningAction, setTransitioningAction] = useState<string | null>(null);
+  const [delayDialogOpen, setDelayDialogOpen] = useState(false);
+  const [reasonDialogOpen, setReasonDialogOpen] = useState(false);
+  const [pendingTripId, setPendingTripId] = useState<string | null>(null);
+  const [pendingStatus, setPendingStatus] = useState<string | null>(null);
 
   const handleDelete = useCallback(
     async (tripId: string) => {
@@ -253,7 +583,6 @@ export default function TripTable({ stationId, trips, onUpdateStatus }: TripTabl
           { method: "DELETE" }
         );
         if (!res.ok) throw new Error("Erreur lors de la suppression");
-        // Optimistic removal handled by parent refresh via onSuccess pattern
       } catch {
         // Silently handle; parent manages state
       } finally {
@@ -263,186 +592,328 @@ export default function TripTable({ stationId, trips, onUpdateStatus }: TripTabl
     [stationId]
   );
 
+  // ─── Enhanced status update with delay/reason dialogs ─────────────────────────
+  const handleStatusUpdate = useCallback(
+    async (tripId: string, status: string, delayMinutes?: number, reason?: string) => {
+      const action = QUICK_ACTIONS[status];
+
+      // Show delay dialog if needed
+      if (action?.needsDelay && delayMinutes === undefined) {
+        setPendingTripId(tripId);
+        setPendingStatus(status);
+        setDelayDialogOpen(true);
+        return;
+      }
+
+      // Show reason dialog if needed
+      if (action?.needsReason && !reason) {
+        setPendingTripId(tripId);
+        setPendingStatus(status);
+        setReasonDialogOpen(true);
+        return;
+      }
+
+      // Execute transition
+      setTransitioningId(tripId);
+      setTransitioningAction(status);
+
+      try {
+        const res = await fetch(`/api/trips/${tripId}/transition`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            toStatus: status,
+            delayMinutes,
+            reason,
+          }),
+        });
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({ error: "Erreur" }));
+          throw new Error(data.error || "Erreur lors de la transition");
+        }
+
+        const result = await res.json();
+        const dispatch = result.dispatch;
+
+        // Show success toast with audio confirmation
+        const audioMsg = dispatch?.audioPayload ? " 🔊 Annonce kiosk générée" : "";
+        toast.success(`Statut mis à jour${audioMsg}`);
+
+        // Refresh parent data
+        onUpdateStatus?.(tripId, status, delayMinutes, reason);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Erreur inconnue");
+      } finally {
+        setTransitioningId(null);
+        setTransitioningAction(null);
+      }
+    },
+    [onUpdateStatus]
+  );
+
+  const handleDelayConfirm = useCallback(
+    (minutes: number) => {
+      setDelayDialogOpen(false);
+      if (pendingTripId && pendingStatus) {
+        handleStatusUpdate(pendingTripId, pendingStatus, minutes);
+        setPendingTripId(null);
+        setPendingStatus(null);
+      }
+    },
+    [pendingTripId, pendingStatus, handleStatusUpdate]
+  );
+
+  const handleReasonConfirm = useCallback(
+    (reason: string) => {
+      setReasonDialogOpen(false);
+      if (pendingTripId && pendingStatus) {
+        handleStatusUpdate(pendingTripId, pendingStatus, undefined, reason);
+        setPendingTripId(null);
+        setPendingStatus(null);
+      }
+    },
+    [pendingTripId, pendingStatus, handleStatusUpdate]
+  );
+
+  const handleDialogCancel = useCallback(() => {
+    setDelayDialogOpen(false);
+    setReasonDialogOpen(false);
+    setPendingTripId(null);
+    setPendingStatus(null);
+  }, []);
+
   if (trips.length === 0) {
     return <EmptyState />;
   }
 
   return (
-    <div>
-      {/* ─── Mobile Cards (visible on small screens) ──────────────── */}
-      <div className="flex flex-col gap-3 md:hidden">
-        <AnimatePresence>
-          {trips.map((trip) => (
-            <TripCard
-              key={trip.id}
-              trip={trip}
-              onUpdateStatus={onUpdateStatus}
-              onDelete={handleDelete}
-            />
-          ))}
-        </AnimatePresence>
-      </div>
+    <>
+      <div>
+        {/* ─── Mobile Cards (visible on small screens) ──────────────── */}
+        <div className="flex flex-col gap-3 md:hidden">
+          <AnimatePresence>
+            {trips.map((trip) => (
+              <TripCard
+                key={trip.id}
+                trip={trip}
+                onUpdateStatus={handleStatusUpdate}
+                onDelete={handleDelete}
+                transitionLoading={transitioningId === trip.id}
+                showDelayDialog={delayDialogOpen}
+                showReasonDialog={reasonDialogOpen}
+                pendingAction={transitioningAction}
+              />
+            ))}
+          </AnimatePresence>
+        </div>
 
-      {/* ─── Desktop Table (hidden on small screens) ─────────────── */}
-      <div className="hidden overflow-hidden rounded-xl border md:block">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-muted/50">
-              <TableHead className="w-[100px] text-xs font-semibold uppercase tracking-wide">
-                Ligne
-              </TableHead>
-              <TableHead className="text-xs font-semibold uppercase tracking-wide">
-                Opérateur
-              </TableHead>
-              <TableHead className="text-xs font-semibold uppercase tracking-wide">
-                Départ
-              </TableHead>
-              <TableHead className="text-xs font-semibold uppercase tracking-wide">
-                Arrivée
-              </TableHead>
-              <TableHead className="w-[70px] text-xs font-semibold uppercase tracking-wide">
-                Quai
-              </TableHead>
-              <TableHead className="w-[140px] text-xs font-semibold uppercase tracking-wide">
-                Statut
-              </TableHead>
-              <TableHead className="w-[60px] text-xs font-semibold uppercase tracking-wide">
-                <span className="sr-only">Actions</span>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <AnimatePresence>
-              {trips.map((trip) => {
-                const statusConfig = getStatusConfig(trip.status);
-                return (
-                  <motion.tr
-                    key={trip.id}
-                    initial={{ opacity: 0, y: 4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -4 }}
-                    transition={{ duration: 0.15 }}
-                    className="group border-b transition-colors last:border-0 hover:bg-muted/30"
-                  >
-                    {/* Line */}
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <span className="inline-flex items-center rounded-md bg-amber-100 px-1.5 py-0.5 text-xs font-bold tracking-wide text-amber-800 dark:bg-amber-500/20 dark:text-amber-300">
-                          {trip.lineCode}
+        {/* ─── Desktop Table (hidden on small screens) ─────────────── */}
+        <div className="hidden overflow-hidden rounded-xl border md:block">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/50">
+                <TableHead className="w-[100px] text-xs font-semibold uppercase tracking-wide">
+                  Ligne
+                </TableHead>
+                <TableHead className="text-xs font-semibold uppercase tracking-wide">
+                  Opérateur
+                </TableHead>
+                <TableHead className="text-xs font-semibold uppercase tracking-wide">
+                  Départ
+                </TableHead>
+                <TableHead className="text-xs font-semibold uppercase tracking-wide">
+                  Arrivée
+                </TableHead>
+                <TableHead className="w-[70px] text-xs font-semibold uppercase tracking-wide">
+                  Quai
+                </TableHead>
+                <TableHead className="w-[140px] text-xs font-semibold uppercase tracking-wide">
+                  Statut
+                </TableHead>
+                <TableHead className="text-xs font-semibold uppercase tracking-wide">
+                  Actions rapides
+                </TableHead>
+                <TableHead className="w-[50px] text-xs font-semibold uppercase tracking-wide">
+                  <span className="sr-only">Menu</span>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <AnimatePresence>
+                {trips.map((trip) => {
+                  const statusConfig = getStatusConfig(trip.status);
+                  const quickActions = getQuickActionsForStatus(trip.status);
+                  const isLoading = transitioningId === trip.id;
+
+                  return (
+                    <motion.tr
+                      key={trip.id}
+                      initial={{ opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -4 }}
+                      transition={{ duration: 0.15 }}
+                      className="group border-b transition-colors last:border-0 hover:bg-muted/30"
+                    >
+                      {/* Line */}
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <span className="inline-flex items-center rounded-md bg-amber-100 px-1.5 py-0.5 text-xs font-bold tracking-wide text-amber-800 dark:bg-amber-500/20 dark:text-amber-300">
+                            {trip.lineCode}
+                          </span>
+                          <span className="truncate text-sm font-medium">
+                            {trip.lineName}
+                          </span>
+                        </div>
+                      </TableCell>
+
+                      {/* Operator */}
+                      <TableCell className="text-sm text-muted-foreground">
+                        {trip.operatorName}
+                      </TableCell>
+
+                      {/* Departure */}
+                      <TableCell>
+                        <span className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+                          <Clock className="h-3.5 w-3.5 text-amber-500" />
+                          {formatTime(trip.departureTime)}
                         </span>
-                        <span className="truncate text-sm font-medium">
-                          {trip.lineName}
-                        </span>
-                      </div>
-                    </TableCell>
+                      </TableCell>
 
-                    {/* Operator */}
-                    <TableCell className="text-sm text-muted-foreground">
-                      {trip.operatorName}
-                    </TableCell>
+                      {/* Arrival */}
+                      <TableCell className="text-sm text-muted-foreground">
+                        {formatTime(trip.estimatedArrival)}
+                      </TableCell>
 
-                    {/* Departure */}
-                    <TableCell>
-                      <span className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
-                        <Clock className="h-3.5 w-3.5 text-amber-500" />
-                        {formatTime(trip.departureTime)}
-                      </span>
-                    </TableCell>
+                      {/* Platform */}
+                      <TableCell>
+                        {trip.platform ? (
+                          <span className="inline-flex h-7 w-7 min-w-[28px] items-center justify-center rounded-md bg-muted text-xs font-medium">
+                            {trip.platform}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground/50">—</span>
+                        )}
+                      </TableCell>
 
-                    {/* Arrival */}
-                    <TableCell className="text-sm text-muted-foreground">
-                      {formatTime(trip.estimatedArrival)}
-                    </TableCell>
+                      {/* Status */}
+                      <TableCell>
+                        <StatusBadge status={trip.status} />
+                      </TableCell>
 
-                    {/* Platform */}
-                    <TableCell>
-                      {trip.platform ? (
-                        <span className="inline-flex h-7 w-7 min-w-[28px] items-center justify-center rounded-md bg-muted text-xs font-medium">
-                          {trip.platform}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground/50">—</span>
-                      )}
-                    </TableCell>
+                      {/* Quick Actions */}
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          {quickActions.map((action) => (
+                            <QuickActionButton
+                              key={action.status}
+                              action={action}
+                              onClick={() => handleStatusUpdate(trip.id, action.status)}
+                              disabled={isLoading}
+                              compact
+                            />
+                          ))}
+                          {isLoading && (
+                            <div className="flex items-center gap-1 text-xs text-violet-600 dark:text-violet-400">
+                              <Volume2 className="h-3 w-3 animate-pulse" />
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
 
-                    {/* Status */}
-                    <TableCell>
-                      <StatusBadge status={trip.status} />
-                    </TableCell>
-
-                    {/* Actions */}
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-9 w-9 min-w-[36px] opacity-0 transition-opacity group-hover:opacity-100"
-                            aria-label="Actions pour ce trajet"
-                          >
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-44">
-                          {STATUS_OPTIONS.map((status) => {
-                            const cfg = TRIP_STATUS_CONFIG[status];
-                            const isActive =
-                              trip.status.toUpperCase() === status;
-                            return (
-                              <DropdownMenuItem
-                                key={status}
-                                onClick={() =>
-                                  onUpdateStatus?.(trip.id, status)
-                                }
-                                className={cn(isActive && "font-semibold")}
-                              >
-                                <span
-                                  className={cn(
-                                    "mr-2 inline-block h-2 w-2 rounded-full",
-                                    {
-                                      "bg-emerald-500":
-                                        status === TRIP_STATUS.SCHEDULED,
-                                      "bg-blue-500":
-                                        status === TRIP_STATUS.BOARDING,
-                                      "bg-amber-500":
-                                        status === TRIP_STATUS.DELAYED,
-                                      "bg-gray-400":
-                                        status === TRIP_STATUS.DEPARTED,
-                                      "bg-red-500":
-                                        status === TRIP_STATUS.CANCELLED,
-                                      "bg-gray-500":
-                                        status === TRIP_STATUS.ARRIVED,
-                                    }
+                      {/* Actions Menu */}
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-9 w-9 min-w-[36px] opacity-0 transition-opacity group-hover:opacity-100"
+                              aria-label="Actions pour ce trajet"
+                            >
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-48">
+                            {STATUS_OPTIONS.map((status) => {
+                              const cfg = TRIP_STATUS_CONFIG[status];
+                              const isActive =
+                                trip.status.toUpperCase() === status;
+                              return (
+                                <DropdownMenuItem
+                                  key={status}
+                                  onClick={() => handleStatusUpdate(trip.id, status)}
+                                  className={cn(isActive && "font-semibold")}
+                                >
+                                  <span
+                                    className={cn(
+                                      "mr-2 inline-block h-2 w-2 rounded-full",
+                                      {
+                                        "bg-emerald-500":
+                                          status === TRIP_STATUS.SCHEDULED,
+                                        "bg-blue-500":
+                                          status === TRIP_STATUS.BOARDING,
+                                        "bg-amber-500":
+                                          status === TRIP_STATUS.DELAYED,
+                                        "bg-gray-400":
+                                          status === TRIP_STATUS.DEPARTED,
+                                        "bg-red-500":
+                                          status === TRIP_STATUS.CANCELLED,
+                                        "bg-gray-500":
+                                          status === TRIP_STATUS.ARRIVED,
+                                      }
+                                    )}
+                                  />
+                                  {cfg.label}
+                                  {isActive && (
+                                    <CheckCircle2 className="ml-auto h-3.5 w-3.5 text-muted-foreground" />
                                   )}
-                                />
-                                {cfg.label}
-                                {isActive && (
-                                  <CheckCircle2 className="ml-auto h-3.5 w-3.5 text-muted-foreground" />
-                                )}
-                              </DropdownMenuItem>
-                            );
-                          })}
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onClick={() => handleDelete(trip.id)}
-                            disabled={deletingId === trip.id}
-                            className="text-red-600 focus:text-red-600 dark:text-red-400 dark:focus:text-red-400"
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            {deletingId === trip.id
-                              ? "Suppression…"
-                              : "Supprimer"}
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </motion.tr>
-                );
-              })}
-            </AnimatePresence>
-          </TableBody>
-        </Table>
+                                </DropdownMenuItem>
+                              );
+                            })}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => handleDelete(trip.id)}
+                              disabled={deletingId === trip.id}
+                              className="text-red-600 focus:text-red-600 dark:text-red-400 dark:focus:text-red-400"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              {deletingId === trip.id
+                                ? "Suppression…"
+                                : "Supprimer"}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </motion.tr>
+                  );
+                })}
+              </AnimatePresence>
+            </TableBody>
+          </Table>
+        </div>
       </div>
-    </div>
+
+      {/* ─── Delay Dialog ──────────────────────────────────────────────── */}
+      <DelayDialog
+        open={delayDialogOpen}
+        onConfirm={handleDelayConfirm}
+        onCancel={handleDialogCancel}
+        loading={transitioningId !== null}
+      />
+
+      {/* ─── Reason Dialog ─────────────────────────────────────────────── */}
+      <ReasonDialog
+        open={reasonDialogOpen}
+        onConfirm={handleReasonConfirm}
+        onCancel={handleDialogCancel}
+        loading={transitioningId !== null}
+        title={
+          pendingStatus === "CANCELLED"
+            ? "Raison de l'annulation"
+            : "Raison"
+        }
+      />
+    </>
   );
 }

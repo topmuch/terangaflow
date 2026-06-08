@@ -83,9 +83,12 @@ model AnnouncementQueue {
   stationId       String
   tripId          String?
   ruleId          String?
+  type            String    @default("trip_status")
   channel         String    @default("voice")
-  message         String
+  title           String?
+  message         String    @default("")
   renderedMessage String?
+  payload         String?   // JSON-encoded audio segment sequence for kiosk playback
   priority        Int       @default(0)
   status          String    @default("pending")
   scheduledAt     DateTime
@@ -100,6 +103,7 @@ model AnnouncementQueue {
   @@index([priority])
   @@index([scheduledAt])
   @@index([stationId, status])
+  @@index([type])
 }
 
 model BillingSubscription {
@@ -295,6 +299,7 @@ model Trip {
   estimatedArrival DateTime
   status           String          @default("scheduled")
   platform         String?
+  delayMinutes     Int             @default(0)
   notes            String?
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
