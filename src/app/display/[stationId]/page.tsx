@@ -15,6 +15,7 @@ import { AdSlot } from "@/components/signage/AdSlot";
 import { ServicesSection } from "@/components/signage/ServicesSection";
 import { Ticker } from "@/components/signage/Ticker";
 import { SignageFooter } from "@/components/signage/Footer";
+import { KioskAudioPlayer } from "@/components/signage/KioskAudioPlayer";
 
 // ─── Branding types ─────────────────────────────────────────────────────────────
 
@@ -223,6 +224,9 @@ export default function DisplayPage() {
         kiosk={kiosk}
         wakeLockActive={kiosk.wakeLockActive}
       />
+
+      {/* Kiosk Audio Player — receives WS broadcasts and plays ding-dong + TTS */}
+      <KioskAudioPlayer stationId={stationId} />
     </motion.div>
   );
 }

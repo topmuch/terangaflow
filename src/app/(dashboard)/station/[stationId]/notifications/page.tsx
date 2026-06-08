@@ -869,7 +869,7 @@ export default function NotificationsControlCenterPage() {
       <Separator />
 
       {/* ─── Centre de Diffusion Audio Hybride ─── */}
-      <NotificationCenter />
+      <NotificationCenter stationId={stationId} />
 
       <Separator />
 

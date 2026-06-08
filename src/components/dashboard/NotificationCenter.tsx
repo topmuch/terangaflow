@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useHybridAudioPlayer } from "@/hooks/useHybridAudioPlayer";
 import type { AudioSegment } from "@/hooks/useHybridAudioPlayer";
+import { useAudioBroadcaster } from "@/hooks/useAudioBroadcast";
 import {
   Megaphone,
   User,
@@ -82,9 +83,14 @@ const REMINDERS: ReminderItem[] = [
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export function NotificationCenter() {
+interface NotificationCenterProps {
+  stationId: string | undefined;
+}
+
+export function NotificationCenter({ stationId }: NotificationCenterProps) {
   const { isPlaying, currentMessage, initializeAudio, playSequence, stop } =
     useHybridAudioPlayer();
+  const { isConnected: wsConnected, broadcast } = useAudioBroadcaster(stationId);
 
   // ─── Form states ──────────────────────────────────────────────────────────
   const [passengerName, setPassengerName] = useState("");
@@ -181,8 +187,11 @@ export function NotificationCenter() {
   const handlePassengerCall = async () => {
     if (!passengerName || !passengerLocation) return;
     const seq = buildPassengerSequence(passengerName, passengerLocation);
+    // Broadcast to kiosk displays
+    broadcast({ type: "passenger_call", segments: seq });
+ // Play locally on admin
     await playSequence(seq);
-    addLog(`Appel passager: ${passengerName} (${passengerLocation})`, "manual");
+    addLog(`Appel passager: ${passengerName} (${passengerLocation}) ${wsConnected ? "🔊 + 🖥️" : "🔊"}`, "manual");
     setPassengerName("");
     setPassengerLocation("");
   };
@@ -190,8 +199,11 @@ export function NotificationCenter() {
   const handleDriverCall = async () => {
     if (!driverDestination || !driverPlatform) return;
     const seq = buildDriverSequence(driverDestination, driverPlatform);
+    // Broadcast to kiosk displays
+    broadcast({ type: "driver_call", segments: seq });
+    // Play locally on admin
     await playSequence(seq);
-    addLog(`Appel chauffeur: ${driverDestination} (${driverPlatform})`, "manual");
+    addLog(`Appel chauffeur: ${driverDestination} (${driverPlatform}) ${wsConnected ? "🔊 + 🖥️" : "🔊"}`, "manual");
     setDriverDestination("");
     setDriverPlatform("");
   };
@@ -199,8 +211,11 @@ export function NotificationCenter() {
   const handleEmergency = async () => {
     if (!emergencyMsg) return;
     const seq = buildEmergencySequence(emergencyMsg);
+    // Broadcast to kiosk displays
+    broadcast({ type: "emergency", segments: seq });
+    // Play locally on admin
     await playSequence(seq);
-    addLog(`URGENCE: ${emergencyMsg}`, "manual");
+    addLog(`URGENCE: ${emergencyMsg} ${wsConnected ? "🔊 + 🖥️" : "🔊"}`, "manual");
     if (repeatEmergency) {
       startEmergencyRepeat(emergencyMsg);
     }
@@ -231,6 +246,11 @@ export function NotificationCenter() {
           </h2>
           <p className="text-xs text-muted-foreground">
             Annonces vocales hybrides (MP3 + Synthèse vocale)
+            {wsConnected ? (
+              <span className="ml-1 text-emerald-500">● Kiosk connecté</span>
+            ) : (
+              <span className="ml-1 text-muted-foreground/60">● Kiosk déconnecté</span>
+            )}
           </p>
         </div>
       </div>
