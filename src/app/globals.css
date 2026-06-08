@@ -152,20 +152,28 @@
 }
 
 /* Respect reduced motion */
-/* ─── Rose Sidebar Theme (Shocking Rose #FC0FC0) ──────────────────── */
+/* ─── Rose Sidebar Theme (#FF1D8D) ──────────────────────────────── */
 .sidebar-rose {
-  --sidebar-bg: linear-gradient(180deg, #fef1f7 0%, #fce4ec 50%, #f8bbd0 100%);
-  --sidebar-border: #f9a8c9;
-  --sidebar-accent: #fce4ec;
-  --sidebar-primary: #d63384;
-  --sidebar-primary-foreground: #ffffff;
+  --sidebar: linear-gradient(180deg, #FF1D8D 0%, #E0167A 50%, #C4106B 100%);
+  --sidebar-foreground: #ffffff;
+  --sidebar-border: rgba(255,255,255,0.25);
+  --sidebar-accent: rgba(255,255,255,0.18);
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-primary: #ffffff;
+  --sidebar-primary-foreground: #FF1D8D;
+}
+.sidebar-rose .bg-sidebar {
+  background: var(--sidebar) !important;
+  color: #ffffff;
 }
 .dark .sidebar-rose {
-  --sidebar-bg: linear-gradient(180deg, #2d0a1e 0%, #3d1028 50%, #4a1533 100%);
-  --sidebar-border: #6b2049;
-  --sidebar-accent: #3d1028;
-  --sidebar-primary: #fc0fc0;
-  --sidebar-primary-foreground: #ffffff;
+  --sidebar: linear-gradient(180deg, #B8146A 0%, #A0105E 50%, #8A0D4F 100%);
+  --sidebar-foreground: #ffffff;
+  --sidebar-border: rgba(255,255,255,0.15);
+  --sidebar-accent: rgba(255,255,255,0.12);
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-primary: #ffffff;
+  --sidebar-primary-foreground: #FF1D8D;
 }
 
 @media (prefers-reduced-motion: reduce) {

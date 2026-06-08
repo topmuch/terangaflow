@@ -134,14 +134,14 @@ function SidebarBrand() {
   return (
     <SidebarHeader className="border-b border-sidebar-border">
       <div className="flex items-center gap-3 px-2 py-1">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-violet-600 text-white shadow-sm">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/20 text-white shadow-sm">
           <Bus className="h-5 w-5" />
         </div>
         <div className="flex flex-col overflow-hidden">
           <span className="text-sm font-bold tracking-tight text-sidebar-foreground truncate">
             TerangaFlow
           </span>
-          <span className="text-[10px] text-sidebar-foreground/50 truncate">
+          <span className="text-[10px] text-sidebar-foreground/70 truncate">
             Intelligence des gares
           </span>
         </div>
@@ -330,7 +330,7 @@ export default function DashboardLayout({
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-muted border-t-violet-500" />
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-muted border-t-[#FF1D8D]" />
           <p className="text-sm text-muted-foreground">Chargement…</p>
         </div>
       </div>
