@@ -4,11 +4,12 @@ import { db } from "@/lib/db";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
-// ─── Audio Segment Types (must match client-side) ─────────────────────────────
+// ─── Audio Segment Types (must match client-side & audioPartitionBuilder) ───────
 
 type AudioSegment =
   | { type: "ding-dong" }
-  | { type: "tts"; text: string; lang?: string };
+  | { type: "tts"; text: string; lang?: string }
+  | { type: "mp3"; src: string };
 
 // ─── Create Manual Announcement (for Dashboard → Kiosk queue) ─────────────────
 

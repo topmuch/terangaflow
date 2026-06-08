@@ -212,7 +212,11 @@ export function AutoAnnouncer({ stationId }: AutoAnnouncerProps) {
     setIsPlaying(true);
     setLastTitle(item.title);
 
-    console.log(`[AutoAnnouncer] 📢 Processing: "${item.title}"`);
+    console.log(`[AutoAnnouncer] 📢 ═══════════════════════════════════════`);
+  console.log(`[AutoAnnouncer] 📢 Processing: "${item.title}"`);
+  console.log(`[AutoAnnouncer] 📢 Type: ${item.type} | Channel: ${item.channel} | Priority: ${item.priority}`);
+  console.log(`[AutoAnnouncer] 📢 Payload raw: ${item.payload?.substring(0, 120)}...`);
+  console.log(`[AutoAnnouncer] 📢 Fallback message: ${item.renderedMessage}`);
 
     try {
       let segments: AudioSegment[] | null = null;
@@ -240,19 +244,24 @@ export function AutoAnnouncer({ stationId }: AutoAnnouncerProps) {
         console.log("[AutoAnnouncer] ✅ Playback complete");
       }
 
-      // Mark as completed in DB
+      // Mark as completed in DB via /api/announcements/mark-played
       try {
-        await fetch("/api/announcements/complete", {
+        const markRes = await fetch("/api/announcements/mark-played", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ id: item.id }),
         });
-        console.log("[AutoAnnouncer] ✅ Marked as played in DB");
+        if (markRes.ok) {
+          console.log(`[AutoAnnouncer] ✅ Marked as played in DB (id: ${item.id})`);
+        } else {
+          console.error(`[AutoAnnouncer] ⚠️ mark-played returned ${markRes.status}`);
+        }
       } catch (err) {
         console.error("[AutoAnnouncer] Failed to mark as played:", err);
       }
 
       setTotalPlayed((prev) => prev + 1);
+      console.log(`[AutoAnnouncer] 📢 ═════════ DONE. Total played: ${totalPlayed + 1} ═════════`);
     } catch (err) {
       console.error("[AutoAnnouncer] ❌ Error playing announcement:", err);
     } finally {
@@ -266,7 +275,8 @@ export function AutoAnnouncer({ stationId }: AutoAnnouncerProps) {
   useEffect(() => {
     if (!stationId || !isAudioUnlocked) {
       if (!isAudioUnlocked) {
-        console.log("[AutoAnnouncer] ⏳ Audio locked. Waiting for user click on kiosk...");
+        console.log("[AutoAnnouncer] ⏳ Audio LOCKED. Showing activation button. Waiting for user click on kiosk page...");
+        console.log("[AutoAnnouncer] ⏳ The polling will NOT start until audio is unlocked.");
       }
       return;
     }
@@ -284,12 +294,18 @@ export function AutoAnnouncer({ stationId }: AutoAnnouncerProps) {
 
         const items: QueueItem[] = await res.json();
 
-        const first = items[0];
-        if (first) {
-          console.log(
-            `[AutoAnnouncer] 📢 Found ${items.length} pending announcement(s). Playing highest priority...`
-          );
-          await processAnnouncement(first);
+        if (items.length === 0) {
+          // Silent — no pending announcements (don't spam logs)
+        } else {
+          console.log(`[AutoAnnouncer] 📬 Poll: ${items.length} pending announcement(s)`);
+          items.forEach((item, idx) => {
+            console.log(`  [${idx}] id=${item.id.substring(0, 8)}... title="${item.title}" priority=${item.priority}`);
+          });
+
+          const first = items[0];
+          if (first) {
+            await processAnnouncement(first);
+          }
         }
       } catch (err) {
         console.error("[AutoAnnouncer] ❌ Poll error:", err);
