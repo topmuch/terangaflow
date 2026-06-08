@@ -17,6 +17,8 @@ const PUBLIC_PATHS = [
   "/api/ads",           // Public ad serving + tracking API
   "/api/push",          // Push subscription API (public opt-in)
   "/api/station",       // Station API routes (auth handled at route level)
+  "/api/announcements", // Public kiosk announcement API (pending, check-auto, mark-played)
+  "/api/diagnostics",   // Diagnostic endpoints (no auth required)
   "/_next",
   "/favicon.ico",
   "/logo.svg",
