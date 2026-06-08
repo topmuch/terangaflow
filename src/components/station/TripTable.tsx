@@ -84,19 +84,9 @@ interface QuickAction {
   needsReason: boolean;
 }
 
-type QuickActionStatus = "BOARDING" | "DELAYED" | "DEPARTED" | "CANCELLED" | "ARRIVED";
+type QuickActionStatus = "DELAYED" | "CANCELLED";
 
 const QUICK_ACTIONS: Record<QuickActionStatus, QuickAction> = {
-  BOARDING: {
-    status: "BOARDING",
-    label: "Embarquement",
-    icon: Volume2,
-    color: "bg-blue-600",
-    hoverColor: "hover:bg-blue-700",
-    textColor: "text-white",
-    needsDelay: false,
-    needsReason: false,
-  },
   DELAYED: {
     status: "DELAYED",
     label: "Retard",
@@ -105,16 +95,6 @@ const QUICK_ACTIONS: Record<QuickActionStatus, QuickAction> = {
     hoverColor: "hover:bg-amber-600",
     textColor: "text-white",
     needsDelay: true,
-    needsReason: false,
-  },
-  DEPARTED: {
-    status: "DEPARTED",
-    label: "Parti",
-    icon: PlaneTakeoff,
-    color: "bg-emerald-600",
-    hoverColor: "hover:bg-emerald-700",
-    textColor: "text-white",
-    needsDelay: false,
     needsReason: false,
   },
   CANCELLED: {
@@ -127,30 +107,17 @@ const QUICK_ACTIONS: Record<QuickActionStatus, QuickAction> = {
     needsDelay: false,
     needsReason: true,
   },
-  ARRIVED: {
-    status: "ARRIVED",
-    label: "Arrivé",
-    icon: PlaneLanding,
-    color: "bg-gray-500",
-    hoverColor: "hover:bg-gray-600",
-    textColor: "text-white",
-    needsDelay: false,
-    needsReason: false,
-  },
 };
 
 // Get valid quick actions for a given current status
 function getQuickActionsForStatus(currentStatus: string): QuickAction[] {
   const upper = currentStatus.toUpperCase();
+  // Only manual actions: Delay and Cancel. Boarding/Departed/Arrived are automatic.
   switch (upper) {
     case "SCHEDULED":
-      return [QUICK_ACTIONS.BOARDING, QUICK_ACTIONS.DELAYED, QUICK_ACTIONS.CANCELLED];
     case "BOARDING":
-      return [QUICK_ACTIONS.DEPARTED, QUICK_ACTIONS.DELAYED, QUICK_ACTIONS.CANCELLED];
     case "DELAYED":
-      return [QUICK_ACTIONS.BOARDING, QUICK_ACTIONS.CANCELLED];
-    case "DEPARTED":
-      return [QUICK_ACTIONS.ARRIVED];
+      return [QUICK_ACTIONS.DELAYED, QUICK_ACTIONS.CANCELLED];
     default:
       return [];
   }

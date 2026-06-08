@@ -5,10 +5,8 @@ import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Plus,
   RefreshCw,
   Megaphone,
-  Bell,
   History,
   Play,
   Clock,
@@ -25,8 +23,7 @@ import {
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
@@ -40,13 +37,6 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 import { TRIP_STATUS_CONFIG, type TripStatus } from "@/types/signage";
 import { NotificationCenter } from "@/components/dashboard/NotificationCenter";
@@ -69,22 +59,6 @@ interface TripItem {
   lineCode: string;
   lineName: string;
   notes: string | null;
-}
-
-interface NotificationRule {
-  id: string;
-  name: string;
-  stationId: string;
-  triggerFrom: string;
-  triggerTo: string;
-  channel: string;
-  template: string;
-  repeatEveryMin: number;
-  repeatMaxTimes: number;
-  priority: number;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
 }
 
 interface AnnouncementItem {
@@ -119,27 +93,7 @@ interface TransitionLogEntry {
   error: string | null;
 }
 
-interface RuleFormData {
-  name: string;
-  triggerFrom: string;
-  triggerTo: string;
-  channel: string;
-  template: string;
-  repeatEveryMin: number;
-  repeatMaxTimes: number;
-  priority: number;
-}
-
 // ─── Constants ────────────────────────────────────────────────────────────────
-
-const TRIP_STATUSES: { value: string; label: string }[] = [
-  { value: "SCHEDULED", label: "Programmé" },
-  { value: "BOARDING", label: "Embarquement" },
-  { value: "DELAYED", label: "Retard" },
-  { value: "DEPARTED", label: "Parti" },
-  { value: "CANCELLED", label: "Annulé" },
-  { value: "ARRIVED", label: "Arrivé" },
-];
 
 const CHANNELS: { value: string; label: string; icon: typeof Volume2 }[] = [
   { value: "voice", label: "Voix", icon: Volume2 },
@@ -164,17 +118,6 @@ const TRANSITION_BUTTON_COLORS: Record<string, string> = {
   ARRIVED: "bg-emerald-600 hover:bg-emerald-700 text-white",
 };
 
-const EMPTY_RULE_FORM: RuleFormData = {
-  name: "",
-  triggerFrom: "SCHEDULED",
-  triggerTo: "BOARDING",
-  channel: "voice",
-  template: "",
-  repeatEveryMin: 0,
-  repeatMaxTimes: 0,
-  priority: 0,
-};
-
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
 function getStatusBadge(status: string) {
@@ -191,18 +134,6 @@ function getStatusBadge(status: string) {
 function getChannelIcon(channel: string) {
   const ch = CHANNELS.find((c) => c.value === channel);
   return ch ? ch.icon : Volume2;
-}
-
-function getChannelBadge(channel: string) {
-  const ch = CHANNELS.find((c) => c.value === channel);
-  if (!ch) return <Badge variant="secondary">{channel}</Badge>;
-  const Icon = ch.icon;
-  return (
-    <Badge variant="outline" className="gap-1">
-      <Icon className="size-3" />
-      {ch.label}
-    </Badge>
-  );
 }
 
 function formatTime(isoString: string): string {
@@ -253,27 +184,6 @@ function TripSkeleton() {
                 <Skeleton className="h-11 w-32 rounded-lg" />
                 <Skeleton className="h-11 w-32 rounded-lg" />
               </div>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
-  );
-}
-
-function RulesSkeleton() {
-  return (
-    <div className="space-y-3">
-      {Array.from({ length: 3 }).map((_, i) => (
-        <Card key={i}>
-          <CardContent className="p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex-1 space-y-2">
-                <Skeleton className="h-5 w-40 rounded" />
-                <Skeleton className="h-5 w-48 rounded-full" />
-                <Skeleton className="h-4 w-full max-w-xs rounded" />
-              </div>
-              <Skeleton className="h-9 w-16 rounded-md" />
             </div>
           </CardContent>
         </Card>
@@ -383,195 +293,6 @@ function TransitionReasonDialog({
   );
 }
 
-// ─── Rule Form ─────────────────────────────────────────────────────────────────
-
-function RuleForm({
-  initial,
-  onSubmit,
-  onCancel,
-  loading,
-}: {
-  initial: RuleFormData;
-  onSubmit: (data: RuleFormData) => void;
-  onCancel: () => void;
-  loading: boolean;
-}) {
-  const [form, setForm] = useState<RuleFormData>(initial);
-
-  function update(partial: Partial<RuleFormData>) {
-    setForm((prev) => ({ ...prev, ...partial }));
-  }
-
-  const isValid =
-    form.name.trim().length >= 2 &&
-    form.template.trim().length >= 3 &&
-    form.triggerFrom !== form.triggerTo;
-
-  return (
-    <div className="space-y-4 pt-2 max-h-[70vh] overflow-y-auto pr-1">
-      {/* Name */}
-      <div className="space-y-2">
-        <Label htmlFor="rule-name">Nom de la règle</Label>
-        <Input
-          id="rule-name"
-          placeholder="Ex: Annonce d'embarquement"
-          value={form.name}
-          onChange={(e) => update({ name: e.target.value })}
-          maxLength={120}
-        />
-      </div>
-
-      {/* Trigger From/To */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-2">
-          <Label htmlFor="rule-from">Statut source</Label>
-          <Select
-            value={form.triggerFrom}
-            onValueChange={(v) => update({ triggerFrom: v })}
-          >
-            <SelectTrigger id="rule-from">
-              <SelectValue placeholder="De..." />
-            </SelectTrigger>
-            <SelectContent>
-              {TRIP_STATUSES.map((s) => (
-                <SelectItem key={s.value} value={s.value}>
-                  {s.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="rule-to">Statut cible</Label>
-          <Select
-            value={form.triggerTo}
-            onValueChange={(v) => update({ triggerTo: v })}
-          >
-            <SelectTrigger id="rule-to">
-              <SelectValue placeholder="Vers..." />
-            </SelectTrigger>
-            <SelectContent>
-              {TRIP_STATUSES.map((s) => (
-                <SelectItem key={s.value} value={s.value}>
-                  {s.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {/* Channel */}
-      <div className="space-y-2">
-        <Label htmlFor="rule-channel">Canal</Label>
-        <Select
-          value={form.channel}
-          onValueChange={(v) => update({ channel: v })}
-        >
-          <SelectTrigger id="rule-channel">
-            <SelectValue placeholder="Choisir un canal" />
-          </SelectTrigger>
-          <SelectContent>
-            {CHANNELS.map((ch) => (
-              <SelectItem key={ch.value} value={ch.value}>
-                <span className="flex items-center gap-2">
-                  <ch.icon className="size-4" />
-                  {ch.label}
-                </span>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Template */}
-      <div className="space-y-2">
-        <Label htmlFor="rule-template">Template du message</Label>
-        <Textarea
-          id="rule-template"
-          placeholder="Le départ pour {destination} est annoncé à quai {platform}"
-          value={form.template}
-          onChange={(e) => update({ template: e.target.value })}
-          rows={3}
-          maxLength={500}
-          className="font-mono text-sm"
-        />
-        <p className="text-xs text-muted-foreground">
-          Variables disponibles :{" "}
-          <code className="bg-muted px-1 rounded text-xs">{'{destination}'}</code>,{" "}
-          <code className="bg-muted px-1 rounded text-xs">{'{platform}'}</code>,{" "}
-          <code className="bg-muted px-1 rounded text-xs">{'{delay}'}</code>,{" "}
-          <code className="bg-muted px-1 rounded text-xs">{'{operator}'}</code>,{" "}
-          <code className="bg-muted px-1 rounded text-xs">{'{lineCode}'}</code>
-        </p>
-      </div>
-
-      {/* Repeat & Priority */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="space-y-2">
-          <Label htmlFor="rule-repeat-every">Rép. (min)</Label>
-          <Input
-            id="rule-repeat-every"
-            type="number"
-            min={0}
-            max={60}
-            value={form.repeatEveryMin}
-            onChange={(e) =>
-              update({ repeatEveryMin: parseInt(e.target.value) || 0 })
-            }
-          />
-          <p className="text-xs text-muted-foreground">0 = aucune</p>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="rule-repeat-max">Nb. max</Label>
-          <Input
-            id="rule-repeat-max"
-            type="number"
-            min={0}
-            max={20}
-            value={form.repeatMaxTimes}
-            onChange={(e) =>
-              update({ repeatMaxTimes: parseInt(e.target.value) || 0 })
-            }
-          />
-          <p className="text-xs text-muted-foreground">0 = illimité</p>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="rule-priority">Priorité</Label>
-          <Input
-            id="rule-priority"
-            type="number"
-            min={0}
-            max={100}
-            value={form.priority}
-            onChange={(e) =>
-              update({ priority: parseInt(e.target.value) || 0 })
-            }
-          />
-        </div>
-      </div>
-
-      <DialogFooter className="gap-2 sm:gap-0 pt-2">
-        <Button variant="outline" onClick={onCancel} disabled={loading}>
-          Annuler
-        </Button>
-        <Button
-          onClick={() => onSubmit(form)}
-          disabled={loading || !isValid}
-          className="bg-amber-500 hover:bg-amber-600 text-white"
-        >
-          {loading ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : (
-            <Plus className="size-4" />
-          )}
-          Créer la règle
-        </Button>
-      </DialogFooter>
-    </div>
-  );
-}
-
 // ─── Empty State Component ──────────────────────────────────────────────────
 
 function EmptyState({
@@ -609,12 +330,6 @@ export default function NotificationsControlCenterPage() {
   const [trips, setTrips] = useState<TripItem[]>([]);
   const [tripsLoading, setTripsLoading] = useState(true);
 
-  // ─── State: Rules ─────────────────────────────────────────────────────────
-  const [rules, setRules] = useState<NotificationRule[]>([]);
-  const [rulesLoading, setRulesLoading] = useState(true);
-  const [ruleDialogOpen, setRuleDialogOpen] = useState(false);
-  const [ruleFormLoading, setRuleFormLoading] = useState(false);
-
   // ─── State: Announcements ─────────────────────────────────────────────────
   const [announcements, setAnnouncements] = useState<AnnouncementItem[]>([]);
   const [announcementsLoading, setAnnouncementsLoading] = useState(true);
@@ -650,25 +365,6 @@ export default function NotificationsControlCenterPage() {
     }
   }, [stationId]);
 
-  // ─── Fetch rules ──────────────────────────────────────────────────────────
-
-  const fetchRules = useCallback(async () => {
-    try {
-      setRulesLoading(true);
-      const res = await fetch(
-        `/api/station/${stationId}/notifications/rules`
-      );
-      if (!res.ok)
-        throw new Error("Erreur lors du chargement des règles");
-      const data: NotificationRule[] = await res.json();
-      setRules(data);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erreur inconnue");
-    } finally {
-      setRulesLoading(false);
-    }
-  }, [stationId]);
-
   // ─── Fetch announcements ───────────────────────────────────────────────────
 
   const fetchAnnouncements = useCallback(async () => {
@@ -693,10 +389,6 @@ export default function NotificationsControlCenterPage() {
   useEffect(() => {
     fetchTrips();
   }, [fetchTrips]);
-
-  useEffect(() => {
-    fetchRules();
-  }, [fetchRules]);
 
   useEffect(() => {
     fetchAnnouncements();
@@ -813,39 +505,6 @@ export default function NotificationsControlCenterPage() {
     }
   }
 
-  // ─── Handle Rule Creation ─────────────────────────────────────────────────
-
-  async function handleCreateRule(form: RuleFormData) {
-    try {
-      setRuleFormLoading(true);
-
-      const res = await fetch(
-        `/api/station/${stationId}/notifications/rules`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(form),
-        }
-      );
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(
-          (data as { error?: string }).error ??
-            "Erreur lors de la création de la règle"
-        );
-      }
-
-      toast.success("Règle créée avec succès");
-      setRuleDialogOpen(false);
-      fetchRules();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erreur inconnue");
-    } finally {
-      setRuleFormLoading(false);
-    }
-  }
-
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
@@ -856,8 +515,8 @@ export default function NotificationsControlCenterPage() {
           Centre de Notifications
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Gérez les transitions d&apos;état, les règles d&apos;annonces et la
-          file de diffusion en temps réel
+          Gérez les transitions d&apos;état et la file de diffusion en temps
+          réel
         </p>
       </div>
 
@@ -875,7 +534,7 @@ export default function NotificationsControlCenterPage() {
 
       {/* Main 2-column layout on large screens */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* ─── Section 1: Trip State Control (Full width on top, left on lg) ─── */}
+        {/* ─── Section 1: Trip State Control (Full width) ─── */}
         <section className="lg:col-span-2">
           <div className="flex items-center gap-2 mb-4">
             <Play className="size-5 text-amber-500" />
@@ -984,125 +643,8 @@ export default function NotificationsControlCenterPage() {
           )}
         </section>
 
-        {/* ─── Section 2: Notification Rules ──────────────────────────────── */}
-        <section>
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <Bell className="size-5 text-amber-500" />
-              <h2 className="text-lg font-semibold">
-                Règles de Notification
-              </h2>
-            </div>
-            <Button
-              size="sm"
-              className="bg-amber-500 hover:bg-amber-600 text-white min-h-[44px]"
-              onClick={() => setRuleDialogOpen(true)}
-            >
-              <Plus className="size-4" />
-              <span className="hidden sm:inline">Nouvelle règle</span>
-            </Button>
-          </div>
-
-          <p className="text-sm text-muted-foreground mb-4 -mt-2">
-            Configurez les annonces automatiques pour chaque transition
-          </p>
-
-          {rulesLoading ? (
-            <RulesSkeleton />
-          ) : rules.length === 0 ? (
-            <EmptyState
-              icon={Bell}
-              title="Aucune règle configurée"
-              description="Créez votre première règle pour déclencher automatiquement des annonces lors des changements d'état."
-              action={
-                <Button
-                  variant="outline"
-                  className="border-amber-300 text-amber-600 hover:bg-amber-50"
-                  onClick={() => setRuleDialogOpen(true)}
-                >
-                  <Plus className="size-4" />
-                  Créer une règle
-                </Button>
-              }
-            />
-          ) : (
-            <div className="space-y-3">
-              <AnimatePresence mode="popLayout">
-                {rules.map((rule) => (
-                  <motion.div
-                    key={rule.id}
-                    layout
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <Card
-                      className={cn(
-                        !rule.isActive && "opacity-60"
-                      )}
-                    >
-                      <CardContent className="p-4">
-                        <div className="flex items-start justify-between gap-3">
-                          {/* Rule Content */}
-                          <div className="flex-1 min-w-0 space-y-2">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-semibold text-sm truncate">
-                                {rule.name}
-                              </span>
-                              {!rule.isActive && (
-                                <Badge
-                                  variant="secondary"
-                                  className="text-xs"
-                                >
-                                  Inactive
-                                </Badge>
-                              )}
-                            </div>
-
-                            {/* Trigger: from → to */}
-                            <div className="flex items-center gap-1.5">
-                              {getStatusBadge(rule.triggerFrom)}
-                              <ChevronDown className="size-3.5 text-muted-foreground rotate-90" />
-                              {getStatusBadge(rule.triggerTo)}
-                            </div>
-
-                            {/* Channel */}
-                            <div>{getChannelBadge(rule.channel)}</div>
-
-                            {/* Template */}
-                            <div className="bg-muted rounded-md p-2">
-                              <code className="text-xs font-mono break-all leading-relaxed">
-                                {rule.template}
-                              </code>
-                            </div>
-
-                            {/* Repeat info */}
-                            <p className="text-xs text-muted-foreground">
-                              {rule.repeatEveryMin > 0
-                                ? `Répète toutes les ${rule.repeatEveryMin} min (${rule.repeatMaxTimes > 0 ? `${rule.repeatMaxTimes} fois max` : "illimité"})`
-                                : "Aucune répétition"}
-                            </p>
-                          </div>
-
-                          {/* Priority badge */}
-                          <div className="shrink-0">
-                            <Badge variant="outline" className="text-xs">
-                              Priorité {rule.priority}
-                            </Badge>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            </div>
-          )}
-        </section>
-
-        {/* ─── Section 3: Announcement Queue ──────────────────────────────── */}
-        <section>
+        {/* ─── Section 2: Announcement Queue (Full width) ─── */}
+        <section className="lg:col-span-2">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Megaphone className="size-5 text-amber-500" />
@@ -1132,7 +674,7 @@ export default function NotificationsControlCenterPage() {
             <EmptyState
               icon={Megaphone}
               title="File vide"
-              description="Aucune annonce en attente. Les annonces apparaîtront ici lorsqu'elles seront programmées par les règles de notification."
+              description="Aucune annonce en attente. Les annonces apparaîtront ici lorsqu'elles seront programmées automatiquement."
             />
           ) : (
             <Card>
@@ -1205,7 +747,7 @@ export default function NotificationsControlCenterPage() {
           )}
         </section>
 
-        {/* ─── Section 4: Transition Logs (Full width) ──────────────────── */}
+        {/* ─── Section 3: Transition Logs (Full width) ──────────────────── */}
         <section className="lg:col-span-2">
           <div className="flex items-center gap-2 mb-4">
             <History className="size-5 text-amber-500" />
@@ -1315,26 +857,6 @@ export default function NotificationsControlCenterPage() {
           loading={transitionDialog.loading}
         />
       )}
-
-      {/* ─── Create Rule Dialog ───────────────────────────────────────────── */}
-      <Dialog open={ruleDialogOpen} onOpenChange={setRuleDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Nouvelle règle de notification</DialogTitle>
-            <DialogDescription>
-              Configurez un déclencheur automatique pour les annonces lors des
-              transitions d&apos;état.
-            </DialogDescription>
-          </DialogHeader>
-          <RuleForm
-            key="new-rule"
-            initial={{ ...EMPTY_RULE_FORM }}
-            onSubmit={handleCreateRule}
-            onCancel={() => setRuleDialogOpen(false)}
-            loading={ruleFormLoading}
-          />
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

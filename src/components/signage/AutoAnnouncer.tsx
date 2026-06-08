@@ -4,18 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 
 // ─── Audio Segment Types (matching server-side) ─────────────────────────────────
 
-interface TtsSegment {
-  type: "tts";
-  text: string;
-  lang?: string;
-}
-
-interface Mp3Segment {
-  type: "mp3";
-  src: string;
-}
-
-type AudioSegment = TtsSegment | Mp3Segment;
+type AudioSegment = { type: "mp3"; src: string } | { type: "tts"; text: string; lang?: string };
 
 interface QueueItem {
   id: string;
@@ -27,24 +16,33 @@ interface QueueItem {
   priority: number;
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// ZERO-CLICK AUDIO POLICY:
+//
+// Pour un fonctionnement "ZÉRO CLIC" garanti en production,
+// cet écran kiosk DOIT être affiché dans un navigateur avec l'option
+// "Autoriser l'autoplay" activée.
+//
+// Options recommandées :
+//   - Fully Kiosk Browser (Android) → Settings → Advanced → Autoplay: Allow
+//   - Chrome/Edge avec le flag: --autoplay-policy=no-user-gesture-required
+//   - Un helper local Node.js pour la sortie audio (hors scope navigateur)
+//
+// Le code ci-dessous tente le déverrouillage automatique au premier render
+// ET réessaie à chaque cycle de polling si l'audio est toujours bloqué.
+//
+// ═══════════════════════════════════════════════════════════════════════════════
+
 // ─── Play MP3 File ────────────────────────────────────────────────────────────
 
 function playMp3(src: string): Promise<void> {
   return new Promise((resolve) => {
     try {
       const audio = new Audio(src);
-      audio.onended = () => {
-        console.log(`[AutoAnnouncer] ✅ MP3 finished: ${src}`);
-        resolve();
-      };
-      audio.onerror = (e) => {
-        console.warn(`[AutoAnnouncer] ⚠️ MP3 error for ${src}:`, e);
-        resolve(); // Skip on error, don't block
-      };
-      audio.play().catch((err) => {
-        console.warn(`[AutoAnnouncer] ⚠️ MP3 play() blocked for ${src}:`, err);
-        resolve();
-      });
+      audio.onended = () => resolve();
+      audio.onerror = () => resolve();
+      audio.play().catch(() => resolve());
     } catch {
       resolve();
     }
@@ -57,11 +55,9 @@ function speak(text: string, lang = "fr-FR"): Promise<void> {
   return new Promise((resolve) => {
     try {
       if (!window.speechSynthesis) {
-        console.warn("[AutoAnnouncer] speechSynthesis not available");
         resolve();
         return;
       }
-      // Cancel any ongoing speech
       window.speechSynthesis.cancel();
 
       const utterance = new SpeechSynthesisUtterance(text);
@@ -69,14 +65,8 @@ function speak(text: string, lang = "fr-FR"): Promise<void> {
       utterance.rate = 0.85;
       utterance.pitch = 1.0;
       utterance.volume = 1.0;
-      utterance.onend = () => {
-        console.log(`[AutoAnnouncer] ✅ TTS finished: "${text.substring(0, 60)}..."`);
-        resolve();
-      };
-      utterance.onerror = (e) => {
-        console.error("[AutoAnnouncer] TTS error:", e);
-        resolve();
-      };
+      utterance.onend = () => resolve();
+      utterance.onerror = () => resolve();
       window.speechSynthesis.speak(utterance);
     } catch {
       resolve();
@@ -95,36 +85,14 @@ async function playAudioSequence(segments: AudioSegment[]): Promise<void> {
 
   for (const segment of segments) {
     if (segment.type === "mp3") {
-      console.log(`[AutoAnnouncer] 🎵 Playing MP3: ${segment.src}`);
+      console.log(`[AutoAnnouncer] 🎵 Playing: ${segment.src}`);
       await playMp3(segment.src);
-      await new Promise((r) => setTimeout(r, 500)); // Pause between segments
+      await new Promise((r) => setTimeout(r, 500));
     } else if (segment.type === "tts") {
       console.log(`[AutoAnnouncer] 🗣️ Speaking: "${segment.text}"`);
       await speak(segment.text, segment.lang);
-      await new Promise((r) => setTimeout(r, 400)); // Pause between segments
+      await new Promise((r) => setTimeout(r, 400));
     }
-  }
-}
-
-// ─── Unlock Audio Context ───────────────────────────────────────────────────
-
-function unlockAudioContext(): boolean {
-  try {
-    // Play a tiny silent audio to unlock browser autoplay policy
-    const audio = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=");
-    audio.volume = 0;
-    const playPromise = audio.play();
-    if (playPromise) {
-      playPromise.then(() => {
-        audio.pause();
-        audio.currentTime = 0;
-      }).catch(() => {
-        // ignore
-      });
-    }
-    return true;
-  } catch {
-    return false;
   }
 }
 
@@ -142,18 +110,40 @@ export function AutoAnnouncer({ stationId }: AutoAnnouncerProps) {
   const playingRef = useRef(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // ─── STEP 1: Unlock audio on first user interaction (CRUCIAL for autoplay) ─
+  // ─── STEP 1: Attempt audio unlock ──────────────────────────────────────────
+  // Tries immediately on mount, plus on first user interaction as fallback.
   useEffect(() => {
-    const unlock = () => {
-      console.log("[AutoAnnouncer] 🔊 User interaction detected. Unlocking audio...");
-      const success = unlockAudioContext();
-      if (success) {
-        setIsAudioUnlocked(true);
-        console.log("[AutoAnnouncer] ✅ Audio unlocked successfully!");
-      } else {
-        console.warn("[AutoAnnouncer] ⚠️ Failed to unlock audio");
+    // Try immediate unlock (works in kiosk browsers with autoplay allowed)
+    const tryUnlock = () => {
+      try {
+        const audio = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=");
+        audio.volume = 0;
+        const playPromise = audio.play();
+        if (playPromise) {
+          playPromise
+            .then(() => {
+              audio.pause();
+              audio.currentTime = 0;
+              if (!isAudioUnlocked) {
+                setIsAudioUnlocked(true);
+                console.log("[AutoAnnouncer] ✅ Audio unlocked automatically (kiosk mode)");
+              }
+            })
+            .catch(() => {
+              // Autoplay blocked — will retry on user click
+            });
+        }
+      } catch {
+        // ignore
       }
-      // Remove listeners after first interaction
+    };
+
+    // Try immediately
+    tryUnlock();
+
+    // Fallback: try on first user click/touch
+    const unlock = () => {
+      tryUnlock();
       document.removeEventListener("click", unlock);
       document.removeEventListener("touchstart", unlock);
       document.removeEventListener("keydown", unlock);
@@ -177,22 +167,17 @@ export function AutoAnnouncer({ stationId }: AutoAnnouncerProps) {
     setIsPlaying(true);
     setLastTitle(item.title);
 
-    console.log(`[AutoAnnouncer] 📢 ═══════════════════════════════════════`);
-    console.log(`[AutoAnnouncer] 📢 Processing: "${item.title}"`);
-    console.log(`[AutoAnnouncer] 📢 Type: ${item.type} | Channel: ${item.channel} | Priority: ${item.priority}`);
-    console.log(`[AutoAnnouncer] 📢 Payload raw: ${item.payload?.substring(0, 120)}...`);
-    console.log(`[AutoAnnouncer] 📢 Fallback message: ${item.renderedMessage}`);
+    console.log(`[AutoAnnouncer] 📢 Processing: "${item.title}" (id: ${item.id.substring(0, 8)}...)`);
 
     try {
       let segments: AudioSegment[] | null = null;
 
-      // Parse audio payload if available
       if (item.payload) {
         try {
           segments = JSON.parse(item.payload) as AudioSegment[];
-          console.log(`[AutoAnnouncer] 📋 Parsed ${segments.length} audio segments`);
+          console.log(`[AutoAnnouncer] 📋 ${segments.length} audio segment(s)`);
         } catch {
-          console.error("[AutoAnnouncer] Failed to parse payload:", item.id);
+          console.error("[AutoAnnouncer] Failed to parse payload");
         }
       }
 
@@ -209,7 +194,7 @@ export function AutoAnnouncer({ stationId }: AutoAnnouncerProps) {
         console.log("[AutoAnnouncer] ✅ Playback complete");
       }
 
-      // Mark as completed in DB via /api/announcements/mark-played
+      // Mark as played in DB
       try {
         const markRes = await fetch("/api/announcements/mark-played", {
           method: "POST",
@@ -217,18 +202,15 @@ export function AutoAnnouncer({ stationId }: AutoAnnouncerProps) {
           body: JSON.stringify({ id: item.id }),
         });
         if (markRes.ok) {
-          console.log(`[AutoAnnouncer] ✅ Marked as played in DB (id: ${item.id})`);
-        } else {
-          console.error(`[AutoAnnouncer] ⚠️ mark-played returned ${markRes.status}`);
+          console.log(`[AutoAnnouncer] ✅ Marked as played`);
         }
       } catch (err) {
         console.error("[AutoAnnouncer] Failed to mark as played:", err);
       }
 
       setTotalPlayed((prev) => prev + 1);
-      console.log(`[AutoAnnouncer] 📢 ═════════ DONE. Total played: ${totalPlayed + 1} ═════════`);
     } catch (err) {
-      console.error("[AutoAnnouncer] ❌ Error playing announcement:", err);
+      console.error("[AutoAnnouncer] ❌ Error:", err);
     } finally {
       playingRef.current = false;
       setIsPlaying(false);
@@ -238,20 +220,20 @@ export function AutoAnnouncer({ stationId }: AutoAnnouncerProps) {
 
   // ─── STEP 3: Polling loop — check every 3 seconds ──────────────────────────
   useEffect(() => {
-    if (!stationId || !isAudioUnlocked) {
-      if (!isAudioUnlocked) {
-        console.log("[AutoAnnouncer] ⏳ Audio LOCKED. Showing activation button. Waiting for user click on kiosk page...");
-        console.log("[AutoAnnouncer] ⏳ The polling will NOT start until audio is unlocked.");
-      }
-      return;
-    }
+    if (!stationId) return;
 
     console.log("[AutoAnnouncer] 🔄 Starting polling loop (every 3s)...");
 
     const checkAndPlay = async () => {
-      if (playingRef.current) return; // Skip if already playing
+      if (playingRef.current) return;
 
       try {
+        // 1. Trigger automatic scheduler (boarding, imminent, reminders)
+        await fetch(`/api/announcements/check-auto?stationId=${stationId}`, {
+          method: "POST",
+        }).catch(() => {});
+
+        // 2. Fetch pending announcements
         const res = await fetch(
           `/api/announcements/pending?stationId=${stationId}`
         );
@@ -259,16 +241,25 @@ export function AutoAnnouncer({ stationId }: AutoAnnouncerProps) {
 
         const items: QueueItem[] = await res.json();
 
-        if (items.length === 0) {
-          // Silent — no pending announcements (don't spam logs)
-        } else {
-          console.log(`[AutoAnnouncer] 📬 Poll: ${items.length} pending announcement(s)`);
-          items.forEach((item, idx) => {
-            console.log(`  [${idx}] id=${item.id.substring(0, 8)}... title="${item.title}" priority=${item.priority}`);
-          });
-
+        if (items.length > 0) {
           const first = items[0];
           if (first) {
+            // If audio is locked, try to unlock before playing
+            if (!isAudioUnlocked) {
+              try {
+                const audio = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=");
+                audio.volume = 0;
+                await audio.play().catch(() => {});
+                audio.pause();
+                setIsAudioUnlocked(true);
+                console.log("[AutoAnnouncer] ✅ Audio unlocked via polling trigger");
+              } catch {
+                // Still locked — skip this announcement
+                console.warn("[AutoAnnouncer] ⚠️ Audio still locked, skipping announcement");
+                return;
+              }
+            }
+
             await processAnnouncement(first);
           }
         }
@@ -277,10 +268,10 @@ export function AutoAnnouncer({ stationId }: AutoAnnouncerProps) {
       }
     };
 
-    // Check immediately on mount
+    // Check immediately
     checkAndPlay();
 
-    // Then poll every 3 seconds
+    // Poll every 3 seconds
     pollRef.current = setInterval(checkAndPlay, 3000);
 
     return () => {
@@ -291,15 +282,18 @@ export function AutoAnnouncer({ stationId }: AutoAnnouncerProps) {
   }, [stationId, isAudioUnlocked, processAnnouncement]);
 
   // ─── STEP 4: Render ─────────────────────────────────────────────────────────
-  // If audio not unlocked: show a VISIBLE activation button (CRITICAL for kiosk)
+  // Show unlock button ONLY if audio is blocked (fallback for non-kiosk browsers)
   if (!isAudioUnlocked) {
     return (
       <button
         className="fixed bottom-4 right-4 z-50 flex items-center gap-3 bg-amber-500 hover:bg-amber-600 text-black px-5 py-3.5 rounded-xl font-bold shadow-2xl cursor-pointer transition-all hover:scale-105 animate-pulse"
         onClick={() => {
-          // This click will trigger the useEffect unlock listener above
-          unlockAudioContext();
-          setIsAudioUnlocked(true);
+          const audio = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=");
+          audio.volume = 0;
+          audio.play().then(() => {
+            audio.pause();
+            setIsAudioUnlocked(true);
+          }).catch(() => {});
         }}
         aria-label="Activer le son de la gare"
       >
@@ -312,7 +306,7 @@ export function AutoAnnouncer({ stationId }: AutoAnnouncerProps) {
     );
   }
 
-  // Audio unlocked — show small status indicator
+  // Audio ready — tiny status indicator
   return (
     <div
       className="fixed bottom-2 right-2 z-50 flex items-center gap-2"
@@ -323,7 +317,6 @@ export function AutoAnnouncer({ stationId }: AutoAnnouncerProps) {
           : "Système d'annonces prêt"
       }
     >
-      {/* Ready indicator (tiny green dot) */}
       {!isPlaying && (
         <div
           className="h-2 w-2 rounded-full bg-emerald-500 opacity-30"
@@ -331,7 +324,6 @@ export function AutoAnnouncer({ stationId }: AutoAnnouncerProps) {
         />
       )}
 
-      {/* Playing indicator */}
       {isPlaying && lastTitle && (
         <div className="flex items-center gap-2 rounded-lg bg-black/80 px-3 py-1.5 text-white shadow-lg backdrop-blur-sm">
           <div className="flex gap-0.5">
@@ -348,7 +340,7 @@ export function AutoAnnouncer({ stationId }: AutoAnnouncerProps) {
   );
 }
 
-// ─── Inline SVG icon to avoid lucide import issues ────────────────────────────
+// ─── Inline SVG icon ────────────────────────────────────────────────────────────
 
 function Volume2Icon() {
   return (

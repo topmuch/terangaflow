@@ -6,15 +6,9 @@ import {
   User,
   Bus,
   AlertTriangle,
-  Clock,
-  Package,
-  ShieldCheck,
-  History,
   Volume2,
   Loader2,
-  Settings,
-  RefreshCw,
-  Timer,
+  History,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -28,11 +22,6 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { createManualAnnouncement } from "@/app/api/actions/announcements";
-import {
-  seedDefaultNotificationRules,
-  processAutomatedNotifications,
-  announceDelay,
-} from "@/app/api/actions/notificationRules";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -42,47 +31,6 @@ interface BroadcastLog {
   type: "manual" | "auto";
   success: boolean;
 }
-
-// ─── Automated Reminder Items ────────────────────────────────────────────────
-
-interface ReminderItem {
-  key: string;
-  label: string;
-  description: string;
-  icon: typeof Package;
-  color: string;
-}
-
-const REMINDERS: ReminderItem[] = [
-  {
-    key: "baggage",
-    label: "Sécurité des bagages",
-    description: "Toutes les 45 min",
-    icon: Package,
-    color: "text-blue-600",
-  },
-  {
-    key: "valuables",
-    label: "Valeurs personnelles",
-    description: "Toutes les 1h30",
-    icon: ShieldCheck,
-    color: "text-amber-600",
-  },
-  {
-    key: "closing",
-    label: "Fermeture guichets",
-    description: "Automatique",
-    icon: Clock,
-    color: "text-red-600",
-  },
-  {
-    key: "rain",
-    label: "Mode intempéries",
-    description: "Manuel",
-    icon: AlertTriangle,
-    color: "text-cyan-600",
-  },
-];
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
@@ -99,20 +47,6 @@ export function NotificationCenter({ stationId }: NotificationCenterProps) {
   const [emergencyMsg, setEmergencyMsg] = useState("");
   const [repeatEmergency, setRepeatEmergency] = useState(false);
 
-  // ─── Delay announcement states ─────────────────────────────────────────────
-  const [delayDestination, setDelayDestination] = useState("");
-  const [delayPlatform, setDelayPlatform] = useState("");
-  const [delayMinutes, setDelayMinutes] = useState("");
-  const [sendingDelay, setSendingDelay] = useState(false);
-
-  // ─── Reminder states ───────────────────────────────────────────────────────
-  const [autoReminders, setAutoReminders] = useState<Record<string, boolean>>({
-    baggage: true,
-    valuables: true,
-    closing: false,
-    rain: false,
-  });
-
   // ─── Logs ─────────────────────────────────────────────────────────────────
   const [logs, setLogs] = useState<BroadcastLog[]>([]);
 
@@ -120,8 +54,6 @@ export function NotificationCenter({ stationId }: NotificationCenterProps) {
   const [sendingPassenger, setSendingPassenger] = useState(false);
   const [sendingDriver, setSendingDriver] = useState(false);
   const [sendingEmergency, setSendingEmergency] = useState(false);
-  const [seedingRules, setSeedingRules] = useState(false);
-  const [processingAuto, setProcessingAuto] = useState(false);
 
   // ─── Emergency repeat ref ──────────────────────────────────────────────────
   const emergencyIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -163,81 +95,7 @@ export function NotificationCenter({ stationId }: NotificationCenterProps) {
     setRepeatEmergency(false);
   };
 
-  // ─── Configuration Actions ─────────────────────────────────────────────────
-
-  const handleSeedRules = async () => {
-    setSeedingRules(true);
-    try {
-      const result = await seedDefaultNotificationRules();
-      if (result.success) {
-        toast.success(result.message);
-        addLog(result.message, "auto", true);
-      } else {
-        toast.info(result.message);
-        addLog(result.message, "auto", false);
-      }
-    } catch {
-      toast.error("Erreur lors de l'initialisation des règles.");
-    } finally {
-      setSeedingRules(false);
-    }
-  };
-
-  const handleProcessAuto = async () => {
-    setProcessingAuto(true);
-    try {
-      const result = await processAutomatedNotifications();
-      if (result.success) {
-        toast.success(result.message);
-        addLog(`Auto-check: ${result.message}`, "auto", true);
-      } else {
-        toast.error(result.error || "Erreur lors de la vérification");
-        addLog(`Auto-check: ${result.error}`, "auto", false);
-      }
-    } catch {
-      toast.error("Erreur lors de la vérification automatique.");
-    } finally {
-      setProcessingAuto(false);
-    }
-  };
-
-  // ─── Delay Announcement ──────────────────────────────────────────────────
-
-  const handleDelay = async () => {
-    const mins = parseInt(delayMinutes, 10);
-    if (!delayDestination || !delayPlatform || isNaN(mins) || mins <= 0) {
-      toast.error("Veuillez remplir la destination, le quai et les minutes de retard.");
-      return;
-    }
-
-    setSendingDelay(true);
-    try {
-      const result = await announceDelay({
-        tripId: "manual_delay_" + Date.now(), // No specific trip for manual delay
-        destination: delayDestination,
-        platform: delayPlatform,
-        delayMinutes: mins,
-      });
-
-      if (result.success) {
-        toast.success(result.message);
-        addLog(`Retard: ${delayDestination} +${mins}min 🖥️`, "manual", true);
-        setDelayDestination("");
-        setDelayPlatform("");
-        setDelayMinutes("");
-      } else {
-        toast.error(result.error || "Erreur lors de l'envoi");
-        addLog(`Retard: ${delayDestination} — ÉCHEC`, "manual", false);
-      }
-    } catch {
-      toast.error("Erreur réseau. Vérifiez la connexion.");
-      addLog(`Retard: ${delayDestination} — ERREUR`, "manual", false);
-    } finally {
-      setSendingDelay(false);
-    }
-  };
-
-  // ─── Actions: Send to kiosk via DB queue (Server Action) ─────────────────
+  // ─── Actions ──────────────────────────────────────────────────────────────
 
   const handlePassengerCall = async () => {
     if (!passengerName || !passengerLocation) {
@@ -262,7 +120,7 @@ export function NotificationCenter({ stationId }: NotificationCenterProps) {
         addLog(`Appel passager: ${passengerName} — ÉCHEC`, "manual", false);
       }
     } catch {
-      toast.error("Erreur réseau. Vérifiez la connexion.");
+      toast.error("Erreur réseau.");
       addLog(`Appel passager: ${passengerName} — ERREUR`, "manual", false);
     } finally {
       setSendingPassenger(false);
@@ -292,7 +150,7 @@ export function NotificationCenter({ stationId }: NotificationCenterProps) {
         addLog(`Appel chauffeur: ${driverDestination} — ÉCHEC`, "manual", false);
       }
     } catch {
-      toast.error("Erreur réseau. Vérifiez la connexion.");
+      toast.error("Erreur réseau.");
       addLog(`Appel chauffeur: ${driverDestination} — ERREUR`, "manual", false);
     } finally {
       setSendingDriver(false);
@@ -323,24 +181,16 @@ export function NotificationCenter({ stationId }: NotificationCenterProps) {
         addLog(`URGENCE: ${emergencyMsg} — ÉCHEC`, "manual", false);
       }
     } catch {
-      toast.error("Erreur réseau. Vérifiez la connexion.");
+      toast.error("Erreur réseau.");
       addLog(`URGENCE: ${emergencyMsg} — ERREUR`, "manual", false);
     } finally {
       setSendingEmergency(false);
     }
   };
 
-  const triggerAutoReminder = async (item: ReminderItem) => {
-    const result = await createManualAnnouncement("passenger", {
-      name: item.label,
-      location: "gare",
-    });
-    addLog(`Rappel automatique : ${item.label} ${result.success ? "🖥️" : "— ÉCHEC"}`, "auto", !!result.success);
-  };
-
   // ─── Render ───────────────────────────────────────────────────────────────
 
-  const isAnySending = sendingPassenger || sendingDriver || sendingEmergency || sendingDelay;
+  const isAnySending = sendingPassenger || sendingDriver || sendingEmergency;
 
   return (
     <div className="space-y-6">
@@ -355,63 +205,16 @@ export function NotificationCenter({ stationId }: NotificationCenterProps) {
           </h2>
           <p className="text-xs text-muted-foreground">
             Les annonces sont envoyées à l&apos;écran kiosk pour diffusion PA
-            <span className="ml-1 text-emerald-500">● Base de données</span>
+            <span className="ml-1 text-emerald-500">● Automatique + Base de données</span>
           </p>
         </div>
       </div>
 
-      {/* ═══ Configuration Panel ═══ */}
-      <Card className="border-amber-200 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/30">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/50 text-amber-600">
-              <Settings className="h-4 w-4" />
-            </div>
-            Configuration du Système
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-wrap gap-3 items-center">
-            <Button
-              onClick={handleSeedRules}
-              disabled={seedingRules}
-              variant="outline"
-              className="border-amber-300 hover:bg-amber-100 dark:border-amber-700 dark:hover:bg-amber-900/50 min-h-[44px]"
-            >
-              {seedingRules ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Settings className="mr-2 h-4 w-4" />
-              )}
-              {seedingRules ? "Initialisation..." : "1. Initialiser les Règles par défaut"}
-            </Button>
-
-            <Button
-              onClick={handleProcessAuto}
-              disabled={processingAuto}
-              variant="outline"
-              className="border-emerald-300 hover:bg-emerald-100 dark:border-emerald-700 dark:hover:bg-emerald-900/50 min-h-[44px]"
-            >
-              {processingAuto ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="mr-2 h-4 w-4" />
-              )}
-              {processingAuto ? "Vérification..." : "2. Vérifier et lancer les annonces auto"}
-            </Button>
-
-            <p className="text-xs text-muted-foreground ml-auto max-w-xs">
-              Cliquez sur &quot;1&quot; une seule fois. Utilisez &quot;2&quot; pour tester manuellement.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
       <Separator />
 
-      {/* Main 3-column grid */}
+      {/* Main grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* ═══ ZONE A : Diffusion Immédiate (2 cols) ═══ */}
+        {/* ═══ Formulaires (2 cols) ═══ */}
         <section className="lg:col-span-2 space-y-6">
           {/* ─── Appel Voyageur ─── */}
           <Card>
@@ -426,9 +229,7 @@ export function NotificationCenter({ stationId }: NotificationCenterProps) {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label htmlFor="passenger-name" className="text-xs">
-                    Nom du passager
-                  </Label>
+                  <Label htmlFor="passenger-name" className="text-xs">Nom du passager</Label>
                   <Input
                     id="passenger-name"
                     value={passengerName}
@@ -438,9 +239,7 @@ export function NotificationCenter({ stationId }: NotificationCenterProps) {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="passenger-location" className="text-xs">
-                    Lieu / Guichet
-                  </Label>
+                  <Label htmlFor="passenger-location" className="text-xs">Lieu / Guichet</Label>
                   <Input
                     id="passenger-location"
                     value={passengerLocation}
@@ -455,11 +254,7 @@ export function NotificationCenter({ stationId }: NotificationCenterProps) {
                 disabled={isAnySending || !passengerName || !passengerLocation}
                 className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white min-h-[44px]"
               >
-                {sendingPassenger ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Volume2 className="mr-2 h-4 w-4" />
-                )}
+                {sendingPassenger ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Volume2 className="mr-2 h-4 w-4" />}
                 {sendingPassenger ? "Envoi en cours..." : "Diffuser sur le kiosk"}
               </Button>
             </CardContent>
@@ -478,9 +273,7 @@ export function NotificationCenter({ stationId }: NotificationCenterProps) {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label htmlFor="driver-destination" className="text-xs">
-                    Destination
-                  </Label>
+                  <Label htmlFor="driver-destination" className="text-xs">Destination</Label>
                   <Input
                     id="driver-destination"
                     value={driverDestination}
@@ -490,9 +283,7 @@ export function NotificationCenter({ stationId }: NotificationCenterProps) {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="driver-platform" className="text-xs">
-                    Quai
-                  </Label>
+                  <Label htmlFor="driver-platform" className="text-xs">Quai</Label>
                   <Input
                     id="driver-platform"
                     value={driverPlatform}
@@ -507,78 +298,8 @@ export function NotificationCenter({ stationId }: NotificationCenterProps) {
                 disabled={isAnySending || !driverDestination || !driverPlatform}
                 className="w-full sm:w-auto bg-amber-500 hover:bg-amber-600 text-white min-h-[44px]"
               >
-                {sendingDriver ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Volume2 className="mr-2 h-4 w-4" />
-                )}
+                {sendingDriver ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Volume2 className="mr-2 h-4 w-4" />}
                 {sendingDriver ? "Envoi en cours..." : "Diffuser sur le kiosk"}
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* ─── Annonce de Retard ─── */}
-          <Card className="border-orange-200 bg-orange-50/50 dark:border-orange-900 dark:bg-orange-950/30">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base text-orange-600 dark:text-orange-400">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/50">
-                  <Timer className="h-4 w-4" />
-                </div>
-                Annonce de Retard
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="delay-destination" className="text-xs">
-                    Destination
-                  </Label>
-                  <Input
-                    id="delay-destination"
-                    value={delayDestination}
-                    onChange={(e) => setDelayDestination(e.target.value)}
-                    placeholder="Ex: Thiès"
-                    disabled={isAnySending}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="delay-platform" className="text-xs">
-                    Quai
-                  </Label>
-                  <Input
-                    id="delay-platform"
-                    value={delayPlatform}
-                    onChange={(e) => setDelayPlatform(e.target.value)}
-                    placeholder="Ex: Quai 5"
-                    disabled={isAnySending}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="delay-minutes" className="text-xs">
-                    Retard (minutes)
-                  </Label>
-                  <Input
-                    id="delay-minutes"
-                    type="number"
-                    min={1}
-                    value={delayMinutes}
-                    onChange={(e) => setDelayMinutes(e.target.value)}
-                    placeholder="Ex: 15"
-                    disabled={isAnySending}
-                  />
-                </div>
-              </div>
-              <Button
-                onClick={handleDelay}
-                disabled={isAnySending || !delayDestination || !delayPlatform || !delayMinutes}
-                className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white min-h-[44px]"
-              >
-                {sendingDelay ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <AlertTriangle className="mr-2 h-4 w-4" />
-                )}
-                {sendingDelay ? "Envoi en cours..." : "Annoncer le retard sur le kiosk"}
               </Button>
             </CardContent>
           </Card>
@@ -595,9 +316,7 @@ export function NotificationCenter({ stationId }: NotificationCenterProps) {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-1.5">
-                <Label htmlFor="emergency-msg" className="text-xs">
-                  Message d&apos;urgence
-                </Label>
+                <Label htmlFor="emergency-msg" className="text-xs">Message d&apos;urgence</Label>
                 <Textarea
                   id="emergency-msg"
                   value={emergencyMsg}
@@ -627,11 +346,7 @@ export function NotificationCenter({ stationId }: NotificationCenterProps) {
                   disabled={isAnySending || !emergencyMsg}
                   className="bg-red-600 hover:bg-red-700 text-white min-h-[44px] animate-pulse"
                 >
-                  {sendingEmergency ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <AlertTriangle className="mr-2 h-4 w-4" />
-                  )}
+                  {sendingEmergency ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <AlertTriangle className="mr-2 h-4 w-4" />}
                   {sendingEmergency ? "Envoi en cours..." : "DIFFUSER EN URGENCE"}
                 </Button>
               </div>
@@ -639,57 +354,8 @@ export function NotificationCenter({ stationId }: NotificationCenterProps) {
           </Card>
         </section>
 
-        {/* ═══ ZONE B & C : Rappels + Journal (1 col) ═══ */}
+        {/* ═══ Journal des Diffusions (1 col) ═══ */}
         <section className="space-y-6">
-          {/* ─── Rappels Automatisés ─── */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
-                  <Clock className="h-4 w-4" />
-                </div>
-                Rappels Automatisés
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {REMINDERS.map((item) => {
-                const Icon = item.icon;
-                const isActive = autoReminders[item.key] ?? false;
-
-                return (
-                  <div
-                    key={item.key}
-                    className="flex items-center justify-between p-3 rounded-lg border bg-muted/30"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <Icon className={cn("h-5 w-5 shrink-0", item.color)} />
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">
-                          {item.label}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {item.description}
-                        </p>
-                      </div>
-                    </div>
-                    <Switch
-                      checked={isActive}
-                      onCheckedChange={(checked) => {
-                        setAutoReminders((prev) => ({
-                          ...prev,
-                          [item.key]: checked,
-                        }));
-                        if (checked) triggerAutoReminder(item);
-                      }}
-                      aria-label={item.label}
-                    />
-                  </div>
-                );
-              })}
-            </CardContent>
-          </Card>
-
-          {/* ─── Journal des Diffusions ─── */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-base">
@@ -700,7 +366,7 @@ export function NotificationCenter({ stationId }: NotificationCenterProps) {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
+              <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
                 {logs.length === 0 && (
                   <p className="text-sm text-muted-foreground text-center py-6">
                     Aucune diffusion récente.
@@ -713,8 +379,6 @@ export function NotificationCenter({ stationId }: NotificationCenterProps) {
                       "flex items-start gap-3 p-3 rounded-lg border-l-4",
                       !log.success
                         ? "bg-red-50 border-red-400 dark:bg-red-950/30 dark:border-red-600"
-                        : log.type === "auto"
-                        ? "bg-emerald-50 border-emerald-400 dark:bg-emerald-950/30 dark:border-emerald-600"
                         : "bg-blue-50 border-blue-400 dark:bg-blue-950/30 dark:border-blue-600"
                     )}
                   >
@@ -729,12 +393,10 @@ export function NotificationCenter({ stationId }: NotificationCenterProps) {
                           "mt-1 text-[10px] uppercase font-bold",
                           !log.success
                             ? "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
-                            : log.type === "auto"
-                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300"
                             : "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
                         )}
                       >
-                        {!log.success ? "Échec" : log.type === "auto" ? "Automatique" : "Manuel"}
+                        {!log.success ? "Échec" : "Manuel"}
                       </Badge>
                     </div>
                   </div>
