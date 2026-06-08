@@ -165,19 +165,19 @@ export function NotificationCenter({ stationId }: NotificationCenterProps) {
   // ─── Sequence builders ────────────────────────────────────────────────────
 
   const buildPassengerSequence = (name: string, location: string): AudioSegment[] => [
-    { type: "mp3", src: "/audio/ding-dong.mp3" },
+    { type: "ding-dong" },
     { type: "tts", text: `Le passager ${name}` },
     { type: "tts", text: `est attendu au ${location}.` },
   ];
 
   const buildDriverSequence = (destination: string, platform: string): AudioSegment[] => [
-    { type: "mp3", src: "/audio/ding-dong.mp3" },
+    { type: "ding-dong" },
     { type: "tts", text: `Le chauffeur du bus pour ${destination}` },
     { type: "tts", text: `est attendu au ${platform}.` },
   ];
 
   const buildEmergencySequence = (msg: string): AudioSegment[] => [
-    { type: "mp3", src: "/audio/ding-dong.mp3" },
+    { type: "ding-dong" },
     { type: "tts", text: "Attention. Message important." },
     { type: "tts", text: msg },
   ];
@@ -224,8 +224,7 @@ export function NotificationCenter({ stationId }: NotificationCenterProps) {
 
   const triggerAutoReminder = async (item: ReminderItem) => {
     const seq: AudioSegment[] = [
-      { type: "mp3", src: "/audio/ding-dong.mp3" },
-      { type: "mp3", src: item.audioSrc },
+      { type: "ding-dong" },
     ];
     await playSequence(seq);
     addLog(`Rappel automatique : ${item.label}`, "auto");

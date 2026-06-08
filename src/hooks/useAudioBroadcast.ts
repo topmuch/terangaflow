@@ -14,7 +14,7 @@ export interface AudioBroadcastEvent {
     | "departure_alert"
     | "departure_imminent"
     | "custom";
-  segments: Array<{ type: "mp3"; src: string } | { type: "tts"; text: string; lang?: string }>;
+  segments: Array<{ type: "mp3"; src: string } | { type: "tts"; text: string; lang?: string } | { type: "ding-dong" }>;
   triggeredAt: string;
 }
 

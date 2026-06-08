@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
-import { useKioskAudioReceiver } from "@/hooks/useKioskAudioReceiver";
+import { useEffect, useRef } from "react";
+import { useKioskAudioReceiver } from "@/hooks/useAudioBroadcast";
 import type { AudioBroadcastEvent } from "@/hooks/useAudioBroadcast";
 
 // ─── Web Audio Ding-Dong ───────────────────────────────────────────────────────
@@ -76,8 +76,12 @@ async function playAudioSequence(event: AudioBroadcastEvent): Promise<void> {
   }
 
   for (const segment of event.segments) {
-    if (segment.type === "mp3") {
-      // Replace ding-dong with Web Audio API version for reliability
+    if (segment.type === "ding-dong") {
+      // Use Web Audio API oscillator for ding-dong
+      await playDingDong();
+      await new Promise((r) => setTimeout(r, 500));
+    } else if (segment.type === "mp3") {
+      // Replace ding-dong MP3 with Web Audio API for reliability
       if (segment.src.includes("ding-dong")) {
         await playDingDong();
         await new Promise((r) => setTimeout(r, 500));
