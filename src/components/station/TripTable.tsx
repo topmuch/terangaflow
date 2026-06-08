@@ -129,6 +129,7 @@ const STATUS_OPTIONS = [
   TRIP_STATUS.SCHEDULED,
   TRIP_STATUS.BOARDING,
   TRIP_STATUS.DELAYED,
+  TRIP_STATUS.DEPARTURE_IMMINENT,
   TRIP_STATUS.DEPARTED,
   TRIP_STATUS.CANCELLED,
   TRIP_STATUS.ARRIVED,
@@ -422,6 +423,7 @@ function TripCard({
                             "bg-emerald-500": status === TRIP_STATUS.SCHEDULED,
                             "bg-blue-500": status === TRIP_STATUS.BOARDING,
                             "bg-amber-500": status === TRIP_STATUS.DELAYED,
+                            "bg-orange-500": status === TRIP_STATUS.DEPARTURE_IMMINENT,
                             "bg-gray-400": status === TRIP_STATUS.DEPARTED,
                             "bg-red-500": status === TRIP_STATUS.CANCELLED,
                             "bg-gray-500": status === TRIP_STATUS.ARRIVED,
@@ -824,6 +826,8 @@ export default function TripTable({ stationId, trips, onUpdateStatus }: TripTabl
                                           status === TRIP_STATUS.BOARDING,
                                         "bg-amber-500":
                                           status === TRIP_STATUS.DELAYED,
+                                        "bg-orange-500":
+                                          status === TRIP_STATUS.DEPARTURE_IMMINENT,
                                         "bg-gray-400":
                                           status === TRIP_STATUS.DEPARTED,
                                         "bg-red-500":

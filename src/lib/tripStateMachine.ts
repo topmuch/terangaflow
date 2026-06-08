@@ -21,21 +21,26 @@ export interface TransitionEdge {
 
 export const TRANSITION_GRAPH: readonly TransitionEdge[] = [
   // From SCHEDULED
-  { from: "SCHEDULED",  to: "BOARDING",  label: "Début d'embarquement", requiresReason: false },
-  { from: "SCHEDULED",  to: "DELAYED",   label: "Retard signalé", requiresReason: true },
-  { from: "SCHEDULED",  to: "CANCELLED", label: "Annulation", requiresReason: true },
+  { from: "SCHEDULED",  to: "BOARDING",            label: "Début d'embarquement", requiresReason: false },
+  { from: "SCHEDULED",  to: "DELAYED",             label: "Retard signalé", requiresReason: true },
+  { from: "SCHEDULED",  to: "CANCELLED",           label: "Annulation", requiresReason: true },
 
   // From BOARDING
-  { from: "BOARDING",   to: "DEPARTED",  label: "Départ effectif", requiresReason: false },
-  { from: "BOARDING",   to: "DELAYED",   label: "Retard durant embarquement", requiresReason: true },
-  { from: "BOARDING",   to: "CANCELLED", label: "Annulation", requiresReason: true },
+  { from: "BOARDING",   to: "DEPARTURE_IMMINENT",  label: "Départ imminent", requiresReason: false },
+  { from: "BOARDING",   to: "DEPARTED",            label: "Départ effectif", requiresReason: false },
+  { from: "BOARDING",   to: "DELAYED",             label: "Retard durant embarquement", requiresReason: true },
+  { from: "BOARDING",   to: "CANCELLED",           label: "Annulation", requiresReason: true },
 
   // From DELAYED
-  { from: "DELAYED",    to: "BOARDING",  label: "Reprise embarquement", requiresReason: false },
-  { from: "DELAYED",    to: "CANCELLED", label: "Annulation après retard", requiresReason: true },
+  { from: "DELAYED",    to: "BOARDING",            label: "Reprise embarquement", requiresReason: false },
+  { from: "DELAYED",    to: "CANCELLED",           label: "Annulation après retard", requiresReason: true },
+
+  // From DEPARTURE_IMMINENT
+  { from: "DEPARTURE_IMMINENT", to: "DEPARTED",    label: "Départ effectif", requiresReason: false },
+  { from: "DEPARTURE_IMMINENT", to: "CANCELLED",   label: "Annulation", requiresReason: true },
 
   // From DEPARTED
-  { from: "DEPARTED",   to: "ARRIVED",   label: "Arrivée à destination", requiresReason: false },
+  { from: "DEPARTED",   to: "ARRIVED",             label: "Arrivée à destination", requiresReason: false },
 ];
 
 // ─── Build adjacency map for O(1) lookup ────────────────────────────────────────

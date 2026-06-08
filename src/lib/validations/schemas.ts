@@ -19,14 +19,21 @@ export type CreateLineInput = z.infer<typeof createLineSchema>;
 
 // ─── Trip ──────────────────────────────────────────────────────────────────────
 
-export const tripStatusEnum = z.enum([
-  "scheduled",
-  "delayed",
-  "cancelled",
-  "departed",
-  "arrived",
-  "boarding",
-]);
+// Accept both uppercase and lowercase, normalize to lowercase for DB consistency
+export const tripStatusEnum = z
+  .string()
+  .transform((v) => v.toLowerCase())
+  .pipe(
+    z.enum([
+      "scheduled",
+      "delayed",
+      "cancelled",
+      "departed",
+      "arrived",
+      "boarding",
+      "departure_imminent",
+    ])
+  );
 
 export const createTripSchema = z.object({
   lineId: z.string().min(1, "La ligne est requise"),
