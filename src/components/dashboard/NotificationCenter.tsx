@@ -1,9 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useHybridAudioPlayer } from "@/hooks/useHybridAudioPlayer";
-import type { AudioSegment } from "@/hooks/useHybridAudioPlayer";
-import { useAudioBroadcaster } from "@/hooks/useAudioBroadcast";
 import {
   Megaphone,
   User,
@@ -15,7 +12,11 @@ import {
   History,
   Volume2,
   Square,
+  Loader2,
+  Wifi,
+  WifiOff,
 } from "lucide-react";
+import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { createManualAnnouncement } from "@/app/api/actions/announcements";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -33,6 +35,7 @@ interface BroadcastLog {
   time: string;
   msg: string;
   type: "manual" | "auto";
+  success: boolean;
 }
 
 // ─── Automated Reminder Items ────────────────────────────────────────────────
@@ -43,7 +46,6 @@ interface ReminderItem {
   description: string;
   icon: typeof Package;
   color: string;
-  audioSrc: string;
 }
 
 const REMINDERS: ReminderItem[] = [
@@ -53,7 +55,6 @@ const REMINDERS: ReminderItem[] = [
     description: "Toutes les 45 min",
     icon: Package,
     color: "text-blue-600",
-    audioSrc: "/audio/rappel_bagages.mp3",
   },
   {
     key: "valuables",
@@ -61,7 +62,6 @@ const REMINDERS: ReminderItem[] = [
     description: "Toutes les 1h30",
     icon: ShieldCheck,
     color: "text-amber-600",
-    audioSrc: "/audio/rappel_valeurs.mp3",
   },
   {
     key: "closing",
@@ -69,7 +69,6 @@ const REMINDERS: ReminderItem[] = [
     description: "Automatique",
     icon: Clock,
     color: "text-red-600",
-    audioSrc: "/audio/ding-dong.mp3",
   },
   {
     key: "rain",
@@ -77,7 +76,6 @@ const REMINDERS: ReminderItem[] = [
     description: "Manuel",
     icon: AlertTriangle,
     color: "text-cyan-600",
-    audioSrc: "/audio/ding-dong.mp3",
   },
 ];
 
@@ -88,10 +86,6 @@ interface NotificationCenterProps {
 }
 
 export function NotificationCenter({ stationId }: NotificationCenterProps) {
-  const { isPlaying, currentMessage, initializeAudio, playSequence, stop } =
-    useHybridAudioPlayer();
-  const { isConnected: wsConnected, broadcast } = useAudioBroadcaster(stationId);
-
   // ─── Form states ──────────────────────────────────────────────────────────
   const [passengerName, setPassengerName] = useState("");
   const [passengerLocation, setPassengerLocation] = useState("");
@@ -111,18 +105,13 @@ export function NotificationCenter({ stationId }: NotificationCenterProps) {
   // ─── Logs ─────────────────────────────────────────────────────────────────
   const [logs, setLogs] = useState<BroadcastLog[]>([]);
 
+  // ─── Loading states ────────────────────────────────────────────────────────
+  const [sendingPassenger, setSendingPassenger] = useState(false);
+  const [sendingDriver, setSendingDriver] = useState(false);
+  const [sendingEmergency, setSendingEmergency] = useState(false);
+
   // ─── Emergency repeat ref ──────────────────────────────────────────────────
   const emergencyIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  // ─── Init audio on first click ────────────────────────────────────────────
-  useEffect(() => {
-    const handleFirstClick = () => {
-      initializeAudio();
-      document.removeEventListener("click", handleFirstClick);
-    };
-    document.addEventListener("click", handleFirstClick);
-    return () => document.removeEventListener("click", handleFirstClick);
-  }, [initializeAudio]);
 
   // ─── Cleanup emergency repeat on unmount ──────────────────────────────────
   useEffect(() => {
@@ -133,13 +122,13 @@ export function NotificationCenter({ stationId }: NotificationCenterProps) {
     };
   }, []);
 
-  const addLog = (msg: string, type: "manual" | "auto") => {
+  const addLog = (msg: string, type: "manual" | "auto", success: boolean) => {
     const time = new Date().toLocaleTimeString("fr-FR", {
       hour: "2-digit",
       minute: "2-digit",
       second: "2-digit",
     });
-    setLogs((prev) => [{ time, msg, type }, ...prev].slice(0, 20));
+    setLogs((prev) => [{ time, msg, type, success }, ...prev].slice(0, 20));
   };
 
   // ─── Emergency repeat logic ────────────────────────────────────────────────
@@ -147,10 +136,9 @@ export function NotificationCenter({ stationId }: NotificationCenterProps) {
     if (emergencyIntervalRef.current) {
       clearInterval(emergencyIntervalRef.current);
     }
-    const seq = buildEmergencySequence(msg);
-    emergencyIntervalRef.current = setInterval(() => {
-      playSequence(seq);
-      addLog(`URGENCE (répétition): ${msg}`, "manual");
+    emergencyIntervalRef.current = setInterval(async () => {
+      const result = await createManualAnnouncement("emergency", { message: msg });
+      addLog(`URGENCE (répétition): ${msg}`, "manual", !!result.success);
     }, 120_000);
   };
 
@@ -162,75 +150,110 @@ export function NotificationCenter({ stationId }: NotificationCenterProps) {
     setRepeatEmergency(false);
   };
 
-  // ─── Sequence builders ────────────────────────────────────────────────────
-
-  const buildPassengerSequence = (name: string, location: string): AudioSegment[] => [
-    { type: "ding-dong" },
-    { type: "tts", text: `Le passager ${name}` },
-    { type: "tts", text: `est attendu au ${location}.` },
-  ];
-
-  const buildDriverSequence = (destination: string, platform: string): AudioSegment[] => [
-    { type: "ding-dong" },
-    { type: "tts", text: `Le chauffeur du bus pour ${destination}` },
-    { type: "tts", text: `est attendu au ${platform}.` },
-  ];
-
-  const buildEmergencySequence = (msg: string): AudioSegment[] => [
-    { type: "ding-dong" },
-    { type: "tts", text: "Attention. Message important." },
-    { type: "tts", text: msg },
-  ];
-
-  // ─── Actions ──────────────────────────────────────────────────────────────
+  // ─── Actions: Send to kiosk via DB queue (Server Action) ─────────────────
 
   const handlePassengerCall = async () => {
-    if (!passengerName || !passengerLocation) return;
-    const seq = buildPassengerSequence(passengerName, passengerLocation);
-    // Broadcast to kiosk displays
-    broadcast({ type: "passenger_call", segments: seq });
- // Play locally on admin
-    await playSequence(seq);
-    addLog(`Appel passager: ${passengerName} (${passengerLocation}) ${wsConnected ? "🔊 + 🖥️" : "🔊"}`, "manual");
-    setPassengerName("");
-    setPassengerLocation("");
+    if (!passengerName || !passengerLocation) {
+      toast.error("Veuillez remplir le nom et le lieu.");
+      return;
+    }
+
+    setSendingPassenger(true);
+    try {
+      const result = await createManualAnnouncement("passenger", {
+        name: passengerName,
+        location: passengerLocation,
+      });
+
+      if (result.success) {
+        toast.success(`Appel passager envoyé au kiosk: ${passengerName}`);
+        addLog(`Appel passager: ${passengerName} (${passengerLocation}) 🖥️`, "manual", true);
+        setPassengerName("");
+        setPassengerLocation("");
+      } else {
+        toast.error(result.error || "Erreur lors de l'envoi");
+        addLog(`Appel passager: ${passengerName} — ÉCHEC`, "manual", false);
+      }
+    } catch {
+      toast.error("Erreur réseau. Vérifiez la connexion.");
+      addLog(`Appel passager: ${passengerName} — ERREUR`, "manual", false);
+    } finally {
+      setSendingPassenger(false);
+    }
   };
 
   const handleDriverCall = async () => {
-    if (!driverDestination || !driverPlatform) return;
-    const seq = buildDriverSequence(driverDestination, driverPlatform);
-    // Broadcast to kiosk displays
-    broadcast({ type: "driver_call", segments: seq });
-    // Play locally on admin
-    await playSequence(seq);
-    addLog(`Appel chauffeur: ${driverDestination} (${driverPlatform}) ${wsConnected ? "🔊 + 🖥️" : "🔊"}`, "manual");
-    setDriverDestination("");
-    setDriverPlatform("");
+    if (!driverDestination || !driverPlatform) {
+      toast.error("Veuillez remplir la destination et le quai.");
+      return;
+    }
+
+    setSendingDriver(true);
+    try {
+      const result = await createManualAnnouncement("driver", {
+        destination: driverDestination,
+        platform: driverPlatform,
+      });
+
+      if (result.success) {
+        toast.success(`Appel chauffeur envoyé au kiosk: ${driverDestination}`);
+        addLog(`Appel chauffeur: ${driverDestination} (${driverPlatform}) 🖥️`, "manual", true);
+        setDriverDestination("");
+        setDriverPlatform("");
+      } else {
+        toast.error(result.error || "Erreur lors de l'envoi");
+        addLog(`Appel chauffeur: ${driverDestination} — ÉCHEC`, "manual", false);
+      }
+    } catch {
+      toast.error("Erreur réseau. Vérifiez la connexion.");
+      addLog(`Appel chauffeur: ${driverDestination} — ERREUR`, "manual", false);
+    } finally {
+      setSendingDriver(false);
+    }
   };
 
   const handleEmergency = async () => {
-    if (!emergencyMsg) return;
-    const seq = buildEmergencySequence(emergencyMsg);
-    // Broadcast to kiosk displays
-    broadcast({ type: "emergency", segments: seq });
-    // Play locally on admin
-    await playSequence(seq);
-    addLog(`URGENCE: ${emergencyMsg} ${wsConnected ? "🔊 + 🖥️" : "🔊"}`, "manual");
-    if (repeatEmergency) {
-      startEmergencyRepeat(emergencyMsg);
+    if (!emergencyMsg) {
+      toast.error("Veuillez saisir un message d'urgence.");
+      return;
     }
-    setEmergencyMsg("");
+
+    setSendingEmergency(true);
+    try {
+      const result = await createManualAnnouncement("emergency", {
+        message: emergencyMsg,
+      });
+
+      if (result.success) {
+        toast.success("Message d'urgence diffusé sur le kiosk");
+        addLog(`URGENCE: ${emergencyMsg} 🖥️`, "manual", true);
+        if (repeatEmergency) {
+          startEmergencyRepeat(emergencyMsg);
+        }
+        setEmergencyMsg("");
+      } else {
+        toast.error(result.error || "Erreur lors de l'envoi");
+        addLog(`URGENCE: ${emergencyMsg} — ÉCHEC`, "manual", false);
+      }
+    } catch {
+      toast.error("Erreur réseau. Vérifiez la connexion.");
+      addLog(`URGENCE: ${emergencyMsg} — ERREUR`, "manual", false);
+    } finally {
+      setSendingEmergency(false);
+    }
   };
 
   const triggerAutoReminder = async (item: ReminderItem) => {
-    const seq: AudioSegment[] = [
-      { type: "ding-dong" },
-    ];
-    await playSequence(seq);
-    addLog(`Rappel automatique : ${item.label}`, "auto");
+    const result = await createManualAnnouncement("passenger", {
+      name: item.label,
+      location: "gare",
+    });
+    addLog(`Rappel automatique : ${item.label} ${result.success ? "🖥️" : "— ÉCHEC"}`, "auto", !!result.success);
   };
 
   // ─── Render ───────────────────────────────────────────────────────────────
+
+  const isAnySending = sendingPassenger || sendingDriver || sendingEmergency;
 
   return (
     <div className="space-y-6">
@@ -244,12 +267,8 @@ export function NotificationCenter({ stationId }: NotificationCenterProps) {
             Centre de Diffusion Audio
           </h2>
           <p className="text-xs text-muted-foreground">
-            Annonces vocales hybrides (MP3 + Synthèse vocale)
-            {wsConnected ? (
-              <span className="ml-1 text-emerald-500">● Kiosk connecté</span>
-            ) : (
-              <span className="ml-1 text-muted-foreground/60">● Kiosk déconnecté</span>
-            )}
+            Les annonces sont envoyées à l&apos;écran kiosk pour diffusion PA
+            <span className="ml-1 text-emerald-500">● Base de données</span>
           </p>
         </div>
       </div>
@@ -281,7 +300,7 @@ export function NotificationCenter({ stationId }: NotificationCenterProps) {
                     value={passengerName}
                     onChange={(e) => setPassengerName(e.target.value)}
                     placeholder="Ex: Mamadou Sy"
-                    disabled={isPlaying}
+                    disabled={isAnySending}
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -293,17 +312,21 @@ export function NotificationCenter({ stationId }: NotificationCenterProps) {
                     value={passengerLocation}
                     onChange={(e) => setPassengerLocation(e.target.value)}
                     placeholder="Ex: Guichet 2"
-                    disabled={isPlaying}
+                    disabled={isAnySending}
                   />
                 </div>
               </div>
               <Button
                 onClick={handlePassengerCall}
-                disabled={isPlaying || !passengerName || !passengerLocation}
+                disabled={isAnySending || !passengerName || !passengerLocation}
                 className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white min-h-[44px]"
               >
-                <Volume2 className="mr-2 h-4 w-4" />
-                Diffuser l&apos;appel
+                {sendingPassenger ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Volume2 className="mr-2 h-4 w-4" />
+                )}
+                {sendingPassenger ? "Envoi en cours..." : "Diffuser sur le kiosk"}
               </Button>
             </CardContent>
           </Card>
@@ -329,7 +352,7 @@ export function NotificationCenter({ stationId }: NotificationCenterProps) {
                     value={driverDestination}
                     onChange={(e) => setDriverDestination(e.target.value)}
                     placeholder="Ex: Mbour"
-                    disabled={isPlaying}
+                    disabled={isAnySending}
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -341,17 +364,21 @@ export function NotificationCenter({ stationId }: NotificationCenterProps) {
                     value={driverPlatform}
                     onChange={(e) => setDriverPlatform(e.target.value)}
                     placeholder="Ex: Quai 3"
-                    disabled={isPlaying}
+                    disabled={isAnySending}
                   />
                 </div>
               </div>
               <Button
                 onClick={handleDriverCall}
-                disabled={isPlaying || !driverDestination || !driverPlatform}
+                disabled={isAnySending || !driverDestination || !driverPlatform}
                 className="w-full sm:w-auto bg-amber-500 hover:bg-amber-600 text-white min-h-[44px]"
               >
-                <Volume2 className="mr-2 h-4 w-4" />
-                Diffuser l&apos;appel
+                {sendingDriver ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Volume2 className="mr-2 h-4 w-4" />
+                )}
+                {sendingDriver ? "Envoi en cours..." : "Diffuser sur le kiosk"}
               </Button>
             </CardContent>
           </Card>
@@ -377,7 +404,7 @@ export function NotificationCenter({ stationId }: NotificationCenterProps) {
                   onChange={(e) => setEmergencyMsg(e.target.value)}
                   placeholder="Tapez votre message d'urgence ici..."
                   rows={3}
-                  disabled={isPlaying}
+                  disabled={isAnySending}
                   className="resize-none"
                 />
               </div>
@@ -397,11 +424,15 @@ export function NotificationCenter({ stationId }: NotificationCenterProps) {
                 </div>
                 <Button
                   onClick={handleEmergency}
-                  disabled={isPlaying || !emergencyMsg}
+                  disabled={isAnySending || !emergencyMsg}
                   className="bg-red-600 hover:bg-red-700 text-white min-h-[44px] animate-pulse"
                 >
-                  <AlertTriangle className="mr-2 h-4 w-4" />
-                  DIFFUSER EN URGENCE
+                  {sendingEmergency ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <AlertTriangle className="mr-2 h-4 w-4" />
+                  )}
+                  {sendingEmergency ? "Envoi en cours..." : "DIFFUSER EN URGENCE"}
                 </Button>
               </div>
             </CardContent>
@@ -480,7 +511,9 @@ export function NotificationCenter({ stationId }: NotificationCenterProps) {
                     key={i}
                     className={cn(
                       "flex items-start gap-3 p-3 rounded-lg border-l-4",
-                      log.type === "auto"
+                      !log.success
+                        ? "bg-red-50 border-red-400 dark:bg-red-950/30 dark:border-red-600"
+                        : log.type === "auto"
                         ? "bg-emerald-50 border-emerald-400 dark:bg-emerald-950/30 dark:border-emerald-600"
                         : "bg-blue-50 border-blue-400 dark:bg-blue-950/30 dark:border-blue-600"
                     )}
@@ -494,12 +527,14 @@ export function NotificationCenter({ stationId }: NotificationCenterProps) {
                         variant="secondary"
                         className={cn(
                           "mt-1 text-[10px] uppercase font-bold",
-                          log.type === "auto"
+                          !log.success
+                            ? "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
+                            : log.type === "auto"
                             ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300"
                             : "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
                         )}
                       >
-                        {log.type === "auto" ? "Automatique" : "Manuel"}
+                        {!log.success ? "Échec" : log.type === "auto" ? "Automatique" : "Manuel"}
                       </Badge>
                     </div>
                   </div>
@@ -509,26 +544,6 @@ export function NotificationCenter({ stationId }: NotificationCenterProps) {
           </Card>
         </section>
       </div>
-
-      {/* ═══ Floating playing indicator ═══ */}
-      {isPlaying && (
-        <div className="fixed bottom-6 right-6 z-50 bg-gradient-to-r from-cyan-600 to-blue-600 text-white px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 animate-pulse">
-          <Megaphone className="h-5 w-5 shrink-0" />
-          <div className="min-w-0">
-            <p className="font-bold text-sm">Diffusion en cours...</p>
-            <p className="text-xs opacity-90 truncate max-w-[200px]">
-              {currentMessage}
-            </p>
-          </div>
-          <button
-            onClick={stop}
-            className="ml-2 p-1.5 bg-white/20 hover:bg-white/30 rounded-full transition-colors shrink-0"
-            aria-label="Arrêter la diffusion"
-          >
-            <Square className="h-3 w-3 fill-current" />
-          </button>
-        </div>
-      )}
     </div>
   );
 }
