@@ -49,6 +49,7 @@ import {
 } from "@/components/ui/select";
 
 import { TRIP_STATUS_CONFIG, type TripStatus } from "@/types/signage";
+import { NotificationCenter } from "@/components/dashboard/NotificationCenter";
 import {
   getAvailableTransitions,
   isTerminalState,
@@ -858,6 +859,11 @@ export default function NotificationsControlCenterPage() {
           file de diffusion en temps réel
         </p>
       </div>
+
+      <Separator />
+
+      {/* ─── Centre de Diffusion Audio Hybride ─── */}
+      <NotificationCenter />
 
       <Separator />
 
