@@ -4,10 +4,6 @@ import { useEffect, useRef, useState, useCallback } from "react";
 
 // ─── Audio Segment Types (matching server-side) ─────────────────────────────────
 
-interface DingDongSegment {
-  type: "ding-dong";
-}
-
 interface TtsSegment {
   type: "tts";
   text: string;
@@ -19,7 +15,7 @@ interface Mp3Segment {
   src: string;
 }
 
-type AudioSegment = DingDongSegment | TtsSegment | Mp3Segment;
+type AudioSegment = TtsSegment | Mp3Segment;
 
 interface QueueItem {
   id: string;
@@ -31,44 +27,26 @@ interface QueueItem {
   priority: number;
 }
 
-// ─── Web Audio Ding-Dong ─────────────────────────────────────────────────────
+// ─── Play MP3 File ────────────────────────────────────────────────────────────
 
-function playDingDong(): Promise<void> {
+function playMp3(src: string): Promise<void> {
   return new Promise((resolve) => {
     try {
-      const ctx = new AudioContext();
-      const gainNode = ctx.createGain();
-      gainNode.connect(ctx.destination);
-      gainNode.gain.value = 0.5;
-
-      // First "ding" — higher pitch (A5 = 880 Hz)
-      const osc1 = ctx.createOscillator();
-      osc1.type = "sine";
-      osc1.frequency.value = 880;
-      osc1.connect(gainNode);
-      osc1.start(ctx.currentTime);
-      osc1.stop(ctx.currentTime + 0.4);
-
-      // Second "dong" — lower pitch (E5 = 660 Hz)
-      const osc2 = ctx.createOscillator();
-      osc2.type = "sine";
-      osc2.frequency.value = 660;
-      osc2.connect(gainNode);
-      osc2.start(ctx.currentTime + 0.45);
-      osc2.stop(ctx.currentTime + 0.9);
-
-      // Fade out
-      gainNode.gain.setValueAtTime(0.5, ctx.currentTime);
-      gainNode.gain.linearRampToValueAtTime(0, ctx.currentTime + 1.0);
-
-      osc1.onended = () => {
-        osc2.onended = () => {
-          ctx.close();
-          resolve();
-        };
+      const audio = new Audio(src);
+      audio.onended = () => {
+        console.log(`[AutoAnnouncer] ✅ MP3 finished: ${src}`);
+        resolve();
       };
+      audio.onerror = (e) => {
+        console.warn(`[AutoAnnouncer] ⚠️ MP3 error for ${src}:`, e);
+        resolve(); // Skip on error, don't block
+      };
+      audio.play().catch((err) => {
+        console.warn(`[AutoAnnouncer] ⚠️ MP3 play() blocked for ${src}:`, err);
+        resolve();
+      });
     } catch {
-      resolve(); // Audio not available, skip
+      resolve();
     }
   });
 }
@@ -91,7 +69,10 @@ function speak(text: string, lang = "fr-FR"): Promise<void> {
       utterance.rate = 0.85;
       utterance.pitch = 1.0;
       utterance.volume = 1.0;
-      utterance.onend = () => resolve();
+      utterance.onend = () => {
+        console.log(`[AutoAnnouncer] ✅ TTS finished: "${text.substring(0, 60)}..."`);
+        resolve();
+      };
       utterance.onerror = (e) => {
         console.error("[AutoAnnouncer] TTS error:", e);
         resolve();
@@ -113,31 +94,14 @@ async function playAudioSequence(segments: AudioSegment[]): Promise<void> {
   }
 
   for (const segment of segments) {
-    if (segment.type === "ding-dong") {
-      console.log("[AutoAnnouncer] 🔔 Playing ding-dong...");
-      await playDingDong();
-      await new Promise((r) => setTimeout(r, 600));
+    if (segment.type === "mp3") {
+      console.log(`[AutoAnnouncer] 🎵 Playing MP3: ${segment.src}`);
+      await playMp3(segment.src);
+      await new Promise((r) => setTimeout(r, 500)); // Pause between segments
     } else if (segment.type === "tts") {
       console.log(`[AutoAnnouncer] 🗣️ Speaking: "${segment.text}"`);
       await speak(segment.text, segment.lang);
-      await new Promise((r) => setTimeout(r, 500));
-    } else if (segment.type === "mp3") {
-      // For ding-dong MP3s, use Web Audio API instead
-      if (segment.src.includes("ding-dong")) {
-        await playDingDong();
-      } else {
-        try {
-          await new Promise<void>((resolve) => {
-            const audio = new Audio(segment.src);
-            audio.onended = () => resolve();
-            audio.onerror = () => resolve();
-            audio.play().catch(() => resolve());
-          });
-        } catch {
-          // Skip if audio fails
-        }
-      }
-      await new Promise((r) => setTimeout(r, 500));
+      await new Promise((r) => setTimeout(r, 400)); // Pause between segments
     }
   }
 }
@@ -146,17 +110,18 @@ async function playAudioSequence(segments: AudioSegment[]): Promise<void> {
 
 function unlockAudioContext(): boolean {
   try {
-    const ctx = new AudioContext();
-    if (ctx.state === "suspended") {
-      ctx.resume();
+    // Play a tiny silent audio to unlock browser autoplay policy
+    const audio = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=");
+    audio.volume = 0;
+    const playPromise = audio.play();
+    if (playPromise) {
+      playPromise.then(() => {
+        audio.pause();
+        audio.currentTime = 0;
+      }).catch(() => {
+        // ignore
+      });
     }
-    // Play a silent buffer to fully unlock
-    const buffer = ctx.createBuffer(1, 1, 22050);
-    const source = ctx.createBufferSource();
-    source.buffer = buffer;
-    source.connect(ctx.destination);
-    source.start(0);
-    setTimeout(() => ctx.close(), 100);
     return true;
   } catch {
     return false;
@@ -213,10 +178,10 @@ export function AutoAnnouncer({ stationId }: AutoAnnouncerProps) {
     setLastTitle(item.title);
 
     console.log(`[AutoAnnouncer] 📢 ═══════════════════════════════════════`);
-  console.log(`[AutoAnnouncer] 📢 Processing: "${item.title}"`);
-  console.log(`[AutoAnnouncer] 📢 Type: ${item.type} | Channel: ${item.channel} | Priority: ${item.priority}`);
-  console.log(`[AutoAnnouncer] 📢 Payload raw: ${item.payload?.substring(0, 120)}...`);
-  console.log(`[AutoAnnouncer] 📢 Fallback message: ${item.renderedMessage}`);
+    console.log(`[AutoAnnouncer] 📢 Processing: "${item.title}"`);
+    console.log(`[AutoAnnouncer] 📢 Type: ${item.type} | Channel: ${item.channel} | Priority: ${item.priority}`);
+    console.log(`[AutoAnnouncer] 📢 Payload raw: ${item.payload?.substring(0, 120)}...`);
+    console.log(`[AutoAnnouncer] 📢 Fallback message: ${item.renderedMessage}`);
 
     try {
       let segments: AudioSegment[] | null = null;
@@ -234,8 +199,8 @@ export function AutoAnnouncer({ stationId }: AutoAnnouncerProps) {
       // Fallback: use renderedMessage as TTS
       if (!segments && item.renderedMessage) {
         segments = [
-          { type: "ding-dong" as const },
-          { type: "tts" as const, text: item.renderedMessage },
+          { type: "mp3", src: "/audio/ding-dong.mp3" },
+          { type: "tts", text: item.renderedMessage },
         ];
       }
 

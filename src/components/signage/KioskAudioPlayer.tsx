@@ -4,39 +4,15 @@ import { useEffect, useRef } from "react";
 import { useKioskAudioReceiver } from "@/hooks/useAudioBroadcast";
 import type { AudioBroadcastEvent } from "@/hooks/useAudioBroadcast";
 
-// ─── Web Audio Ding-Dong ───────────────────────────────────────────────────────
+// ─── Play MP3 File ────────────────────────────────────────────────────────────
 
-function playDingDong(): Promise<void> {
+function playMp3(src: string): Promise<void> {
   return new Promise((resolve) => {
     try {
-      const ctx = new AudioContext();
-      const gainNode = ctx.createGain();
-      gainNode.connect(ctx.destination);
-      gainNode.gain.value = 0.35;
-
-      const osc1 = ctx.createOscillator();
-      osc1.type = "sine";
-      osc1.frequency.value = 880;
-      osc1.connect(gainNode);
-      osc1.start(ctx.currentTime);
-      osc1.stop(ctx.currentTime + 0.4);
-
-      const osc2 = ctx.createOscillator();
-      osc2.type = "sine";
-      osc2.frequency.value = 660;
-      osc2.connect(gainNode);
-      osc2.start(ctx.currentTime + 0.45);
-      osc2.stop(ctx.currentTime + 0.9);
-
-      gainNode.gain.setValueAtTime(0.35, ctx.currentTime);
-      gainNode.gain.linearRampToValueAtTime(0, ctx.currentTime + 1.0);
-
-      osc1.onended = () => {
-        osc2.onended = () => {
-          ctx.close();
-          resolve();
-        };
-      };
+      const audio = new Audio(src);
+      audio.onended = () => resolve();
+      audio.onerror = () => resolve();
+      audio.play().catch(() => resolve());
     } catch {
       resolve();
     }
@@ -76,29 +52,9 @@ async function playAudioSequence(event: AudioBroadcastEvent): Promise<void> {
   }
 
   for (const segment of event.segments) {
-    if (segment.type === "ding-dong") {
-      // Use Web Audio API oscillator for ding-dong
-      await playDingDong();
+    if (segment.type === "mp3") {
+      await playMp3(segment.src);
       await new Promise((r) => setTimeout(r, 500));
-    } else if (segment.type === "mp3") {
-      // Replace ding-dong MP3 with Web Audio API for reliability
-      if (segment.src.includes("ding-dong")) {
-        await playDingDong();
-        await new Promise((r) => setTimeout(r, 500));
-      } else {
-        // Try to play the MP3 file
-        try {
-          await new Promise<void>((resolve) => {
-            const audio = new Audio(segment.src);
-            audio.onended = () => resolve();
-            audio.onerror = () => resolve();
-            audio.play().catch(() => resolve());
-          });
-          await new Promise((r) => setTimeout(r, 500));
-        } catch {
-          // Skip if audio fails
-        }
-      }
     } else if (segment.type === "tts") {
       await speak(segment.text, segment.lang);
       await new Promise((r) => setTimeout(r, 500));
@@ -120,9 +76,9 @@ export function KioskAudioPlayer({ stationId }: KioskAudioPlayerProps) {
   useEffect(() => {
     const init = () => {
       try {
-        const ctx = new AudioContext();
-        if (ctx.state === "suspended") ctx.resume();
-        ctx.close();
+        const audio = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=");
+        audio.volume = 0;
+        audio.play().catch(() => {});
       } catch {
         // ignore
       }

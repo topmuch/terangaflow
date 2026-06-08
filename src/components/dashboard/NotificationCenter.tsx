@@ -11,10 +11,10 @@ import {
   ShieldCheck,
   History,
   Volume2,
-  Square,
   Loader2,
-  Wifi,
-  WifiOff,
+  Settings,
+  RefreshCw,
+  Timer,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -28,6 +28,11 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { createManualAnnouncement } from "@/app/api/actions/announcements";
+import {
+  seedDefaultNotificationRules,
+  processAutomatedNotifications,
+  announceDelay,
+} from "@/app/api/actions/notificationRules";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -94,6 +99,12 @@ export function NotificationCenter({ stationId }: NotificationCenterProps) {
   const [emergencyMsg, setEmergencyMsg] = useState("");
   const [repeatEmergency, setRepeatEmergency] = useState(false);
 
+  // ─── Delay announcement states ─────────────────────────────────────────────
+  const [delayDestination, setDelayDestination] = useState("");
+  const [delayPlatform, setDelayPlatform] = useState("");
+  const [delayMinutes, setDelayMinutes] = useState("");
+  const [sendingDelay, setSendingDelay] = useState(false);
+
   // ─── Reminder states ───────────────────────────────────────────────────────
   const [autoReminders, setAutoReminders] = useState<Record<string, boolean>>({
     baggage: true,
@@ -109,6 +120,8 @@ export function NotificationCenter({ stationId }: NotificationCenterProps) {
   const [sendingPassenger, setSendingPassenger] = useState(false);
   const [sendingDriver, setSendingDriver] = useState(false);
   const [sendingEmergency, setSendingEmergency] = useState(false);
+  const [seedingRules, setSeedingRules] = useState(false);
+  const [processingAuto, setProcessingAuto] = useState(false);
 
   // ─── Emergency repeat ref ──────────────────────────────────────────────────
   const emergencyIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -148,6 +161,80 @@ export function NotificationCenter({ stationId }: NotificationCenterProps) {
       emergencyIntervalRef.current = null;
     }
     setRepeatEmergency(false);
+  };
+
+  // ─── Configuration Actions ─────────────────────────────────────────────────
+
+  const handleSeedRules = async () => {
+    setSeedingRules(true);
+    try {
+      const result = await seedDefaultNotificationRules();
+      if (result.success) {
+        toast.success(result.message);
+        addLog(result.message, "auto", true);
+      } else {
+        toast.info(result.message);
+        addLog(result.message, "auto", false);
+      }
+    } catch {
+      toast.error("Erreur lors de l'initialisation des règles.");
+    } finally {
+      setSeedingRules(false);
+    }
+  };
+
+  const handleProcessAuto = async () => {
+    setProcessingAuto(true);
+    try {
+      const result = await processAutomatedNotifications();
+      if (result.success) {
+        toast.success(result.message);
+        addLog(`Auto-check: ${result.message}`, "auto", true);
+      } else {
+        toast.error(result.error || "Erreur lors de la vérification");
+        addLog(`Auto-check: ${result.error}`, "auto", false);
+      }
+    } catch {
+      toast.error("Erreur lors de la vérification automatique.");
+    } finally {
+      setProcessingAuto(false);
+    }
+  };
+
+  // ─── Delay Announcement ──────────────────────────────────────────────────
+
+  const handleDelay = async () => {
+    const mins = parseInt(delayMinutes, 10);
+    if (!delayDestination || !delayPlatform || isNaN(mins) || mins <= 0) {
+      toast.error("Veuillez remplir la destination, le quai et les minutes de retard.");
+      return;
+    }
+
+    setSendingDelay(true);
+    try {
+      const result = await announceDelay({
+        tripId: "manual_delay_" + Date.now(), // No specific trip for manual delay
+        destination: delayDestination,
+        platform: delayPlatform,
+        delayMinutes: mins,
+      });
+
+      if (result.success) {
+        toast.success(result.message);
+        addLog(`Retard: ${delayDestination} +${mins}min 🖥️`, "manual", true);
+        setDelayDestination("");
+        setDelayPlatform("");
+        setDelayMinutes("");
+      } else {
+        toast.error(result.error || "Erreur lors de l'envoi");
+        addLog(`Retard: ${delayDestination} — ÉCHEC`, "manual", false);
+      }
+    } catch {
+      toast.error("Erreur réseau. Vérifiez la connexion.");
+      addLog(`Retard: ${delayDestination} — ERREUR`, "manual", false);
+    } finally {
+      setSendingDelay(false);
+    }
   };
 
   // ─── Actions: Send to kiosk via DB queue (Server Action) ─────────────────
@@ -253,7 +340,7 @@ export function NotificationCenter({ stationId }: NotificationCenterProps) {
 
   // ─── Render ───────────────────────────────────────────────────────────────
 
-  const isAnySending = sendingPassenger || sendingDriver || sendingEmergency;
+  const isAnySending = sendingPassenger || sendingDriver || sendingEmergency || sendingDelay;
 
   return (
     <div className="space-y-6">
@@ -272,6 +359,53 @@ export function NotificationCenter({ stationId }: NotificationCenterProps) {
           </p>
         </div>
       </div>
+
+      {/* ═══ Configuration Panel ═══ */}
+      <Card className="border-amber-200 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/30">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/50 text-amber-600">
+              <Settings className="h-4 w-4" />
+            </div>
+            Configuration du Système
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap gap-3 items-center">
+            <Button
+              onClick={handleSeedRules}
+              disabled={seedingRules}
+              variant="outline"
+              className="border-amber-300 hover:bg-amber-100 dark:border-amber-700 dark:hover:bg-amber-900/50 min-h-[44px]"
+            >
+              {seedingRules ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Settings className="mr-2 h-4 w-4" />
+              )}
+              {seedingRules ? "Initialisation..." : "1. Initialiser les Règles par défaut"}
+            </Button>
+
+            <Button
+              onClick={handleProcessAuto}
+              disabled={processingAuto}
+              variant="outline"
+              className="border-emerald-300 hover:bg-emerald-100 dark:border-emerald-700 dark:hover:bg-emerald-900/50 min-h-[44px]"
+            >
+              {processingAuto ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-2 h-4 w-4" />
+              )}
+              {processingAuto ? "Vérification..." : "2. Vérifier et lancer les annonces auto"}
+            </Button>
+
+            <p className="text-xs text-muted-foreground ml-auto max-w-xs">
+              Cliquez sur &quot;1&quot; une seule fois. Utilisez &quot;2&quot; pour tester manuellement.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
       <Separator />
 
@@ -379,6 +513,72 @@ export function NotificationCenter({ stationId }: NotificationCenterProps) {
                   <Volume2 className="mr-2 h-4 w-4" />
                 )}
                 {sendingDriver ? "Envoi en cours..." : "Diffuser sur le kiosk"}
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* ─── Annonce de Retard ─── */}
+          <Card className="border-orange-200 bg-orange-50/50 dark:border-orange-900 dark:bg-orange-950/30">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base text-orange-600 dark:text-orange-400">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/50">
+                  <Timer className="h-4 w-4" />
+                </div>
+                Annonce de Retard
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="delay-destination" className="text-xs">
+                    Destination
+                  </Label>
+                  <Input
+                    id="delay-destination"
+                    value={delayDestination}
+                    onChange={(e) => setDelayDestination(e.target.value)}
+                    placeholder="Ex: Thiès"
+                    disabled={isAnySending}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="delay-platform" className="text-xs">
+                    Quai
+                  </Label>
+                  <Input
+                    id="delay-platform"
+                    value={delayPlatform}
+                    onChange={(e) => setDelayPlatform(e.target.value)}
+                    placeholder="Ex: Quai 5"
+                    disabled={isAnySending}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="delay-minutes" className="text-xs">
+                    Retard (minutes)
+                  </Label>
+                  <Input
+                    id="delay-minutes"
+                    type="number"
+                    min={1}
+                    value={delayMinutes}
+                    onChange={(e) => setDelayMinutes(e.target.value)}
+                    placeholder="Ex: 15"
+                    disabled={isAnySending}
+                  />
+                </div>
+              </div>
+              <Button
+                onClick={handleDelay}
+                disabled={isAnySending || !delayDestination || !delayPlatform || !delayMinutes}
+                className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white min-h-[44px]"
+              >
+                {sendingDelay ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <AlertTriangle className="mr-2 h-4 w-4" />
+                )}
+                {sendingDelay ? "Envoi en cours..." : "Annoncer le retard sur le kiosk"}
               </Button>
             </CardContent>
           </Card>

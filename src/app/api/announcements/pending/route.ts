@@ -1,12 +1,12 @@
 // ─── GET /api/announcements/pending?stationId=xxx ─────────────────────────────────
 //
-// Fetches pending announcements due for playback on the kiosk display.
-// Returns audio segment payloads (JSON) for the AutoAnnouncer to play.
+// Fetches the oldest pending announcement for the kiosk to play.
+// Returns audio segment payloads (JSON) for the AutoAnnouncer.
 // No auth required — kiosk is a public-facing display.
 //
 
 import { NextResponse } from "next/server";
-import { fetchDueAnnouncements } from "@/lib/notificationDispatcher";
+import { db } from "@/lib/db";
 
 export async function GET(request: Request) {
   try {
@@ -20,11 +20,37 @@ export async function GET(request: Request) {
       );
     }
 
-    const items = await fetchDueAnnouncements(stationId);
+    // Fetch the oldest pending announcement with scheduledAt <= now, ordered by priority desc then scheduledAt asc
+    const now = new Date();
 
-    return NextResponse.json(items);
+    const announcement = await db.announcementQueue.findFirst({
+      where: {
+        stationId,
+        status: "pending",
+        scheduledAt: { lte: now },
+      },
+      orderBy: [
+        { priority: "desc" },
+        { scheduledAt: "asc" },
+      ],
+      select: {
+        id: true,
+        type: true,
+        title: true,
+        payload: true,
+        renderedMessage: true,
+        channel: true,
+        priority: true,
+      },
+    });
+
+    if (!announcement) {
+      return NextResponse.json([]);
+    }
+
+    return NextResponse.json([announcement]);
   } catch (error) {
-    console.error("Erreur /api/announcements/pending:", error);
+    console.error("[/api/announcements/pending] Error:", error);
     return NextResponse.json(
       { error: "Erreur interne du serveur." },
       { status: 500 }
