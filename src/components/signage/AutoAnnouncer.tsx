@@ -238,9 +238,10 @@ export function AutoAnnouncer({ stationId }: AutoAnnouncerProps) {
 
         const items: QueueItem[] = await res.json();
 
-        if (items.length > 0) {
+        const first = items[0];
+        if (first) {
           // Play the highest priority announcement
-          await processAnnouncement(items[0]);
+          await processAnnouncement(first);
         }
       } catch (err) {
         console.error("[AutoAnnouncer] Poll error:", err);

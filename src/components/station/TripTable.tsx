@@ -84,7 +84,9 @@ interface QuickAction {
   needsReason: boolean;
 }
 
-const QUICK_ACTIONS: Record<string, QuickAction> = {
+type QuickActionStatus = "BOARDING" | "DELAYED" | "DEPARTED" | "CANCELLED" | "ARRIVED";
+
+const QUICK_ACTIONS: Record<QuickActionStatus, QuickAction> = {
   BOARDING: {
     status: "BOARDING",
     label: "Embarquement",
@@ -595,7 +597,7 @@ export default function TripTable({ stationId, trips, onUpdateStatus }: TripTabl
   // ─── Enhanced status update with delay/reason dialogs ─────────────────────────
   const handleStatusUpdate = useCallback(
     async (tripId: string, status: string, delayMinutes?: number, reason?: string) => {
-      const action = QUICK_ACTIONS[status];
+      const action = QUICK_ACTIONS[status as QuickActionStatus];
 
       // Show delay dialog if needed
       if (action?.needsDelay && delayMinutes === undefined) {
