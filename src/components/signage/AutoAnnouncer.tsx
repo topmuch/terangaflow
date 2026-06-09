@@ -110,11 +110,25 @@ export function AutoAnnouncer({ stationId }: AutoAnnouncerProps) {
               `[AutoAnnouncer] 📢 Processing: "${next.title}" (id: ${next.id.substring(0, 8)}...)`
             );
 
-            // Parse payload: JSON array of text strings
+            // Parse payload: JSON array — support two formats:
+            //   NEW: ["text1", "text2"]  (plain text strings)
+            //   OLD: [{type:"tts",text:"..."}, {type:"mp3",src:"..."}]
             let messages: string[] = [];
             if (next.payload) {
               try {
-                messages = JSON.parse(next.payload) as string[];
+                const parsed = JSON.parse(next.payload);
+                if (Array.isArray(parsed)) {
+                  for (const item of parsed) {
+                    if (typeof item === "string") {
+                      // NEW format: plain text
+                      messages.push(item);
+                    } else if (item && typeof item === "object" && item.text) {
+                      // OLD format: {type:"tts", text:"..."}
+                      messages.push(item.text);
+                    }
+                    // Skip {type:"mp3", src:"..."} — Ding-Dong is now synthetic
+                  }
+                }
               } catch {
                 console.error("[AutoAnnouncer] Failed to parse payload");
               }

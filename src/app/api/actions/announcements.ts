@@ -4,14 +4,13 @@ import { db } from "@/lib/db";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
-// ─── Audio Segment Types ──────────────────────────────────────────────────────────
-
-type AudioSegment = { type: "mp3"; src: string } | { type: "tts"; text: string };
-
 // ─── Manual Trip Action (DELAY / CANCEL) ────────────────────────────────────────
 //
 // Only 2 manual actions for trips: Delay and Cancel.
 // Boarding/Imminent/Departed are handled automatically by the scheduler.
+//
+// Payload format: JSON array of plain text strings.
+// The AutoAnnouncer client plays each string via Ding-Dong + TTS.
 
 export async function triggerManualTripAction(
   action: "DELAY" | "CANCEL",
@@ -46,12 +45,9 @@ export async function triggerManualTripAction(
         data: { status: "delayed", delayMinutes: minutes },
       });
 
-      const sequence: AudioSegment[] = [
-        { type: "mp3", src: "/audio/ding-dong.mp3" },
-        { type: "tts", text: "Attention voyageurs." },
-        { type: "mp3", src: "/audio/phrase_retard.mp3" },
-        { type: "tts", text: `Le départ du bus pour ${destination} au quai ${platform} est retardé de ${minutes} minutes.` },
-        { type: "mp3", src: "/audio/phrase_minutes.mp3" },
+      const messages: string[] = [
+        `Attention voyageurs.`,
+        `Le départ du bus pour ${destination} au quai ${platform} est retardé de ${minutes} minutes.`,
       ];
 
       await db.announcementQueue.create({
@@ -62,7 +58,7 @@ export async function triggerManualTripAction(
           status: "pending",
           channel: "VOCAL_PA",
           scheduledAt: new Date(),
-          payload: JSON.stringify(sequence),
+          payload: JSON.stringify(messages),
           title: `Retard : ${destination} (+${minutes}min)`,
           priority: 150,
         },
@@ -77,9 +73,8 @@ export async function triggerManualTripAction(
         data: { status: "cancelled" },
       });
 
-      const sequence: AudioSegment[] = [
-        { type: "mp3", src: "/audio/ding-dong.mp3" },
-        { type: "tts", text: `Attention. Le bus à destination de ${destination} est annulé. Veuillez vous rapprocher du guichet pour plus d'informations.` },
+      const messages: string[] = [
+        `Le bus à destination de ${destination} est annulé. Veuillez vous rapprocher du guichet pour plus d'informations.`,
       ];
 
       await db.announcementQueue.create({
@@ -90,7 +85,7 @@ export async function triggerManualTripAction(
           status: "pending",
           channel: "VOCAL_PA",
           scheduledAt: new Date(),
-          payload: JSON.stringify(sequence),
+          payload: JSON.stringify(messages),
           title: `Annulation : ${destination}`,
           priority: 200,
         },
@@ -106,9 +101,10 @@ export async function triggerManualTripAction(
   }
 }
 
-// ─── Manual Calls (Passenger, Driver, Emergency) ─────────────────────────────────
+// ─── Manual Calls (Passenger, Driver, Emergency) ─────────────────────────────
 //
-// Pushes audio sequences into the announcement queue for kiosk playback.
+// Payload format: JSON array of plain text strings.
+// The AutoAnnouncer client plays each string via Ding-Dong + TTS.
 
 export async function createManualAnnouncement(
   type: "passenger" | "driver" | "emergency",
@@ -130,7 +126,7 @@ export async function createManualAnnouncement(
     return { success: false, error: "Aucune gare assignée" };
   }
 
-  let sequence: AudioSegment[] = [];
+  let messages: string[] = [];
   let title = "";
   let priority = 50;
 
@@ -138,28 +134,25 @@ export async function createManualAnnouncement(
     if (!data.name || !data.location) {
       return { success: false, error: "Nom et lieu requis" };
     }
-    sequence = [
-      { type: "mp3", src: "/audio/ding-dong.mp3" },
-      { type: "tts", text: `Le passager ${data.name} est attendu au ${data.location}.` },
+    messages = [
+      `Le passager ${data.name} est attendu au ${data.location}.`,
     ];
     title = `Appel Passager: ${data.name}`;
   } else if (type === "driver") {
     if (!data.destination || !data.platform) {
       return { success: false, error: "Destination et quai requis" };
     }
-    sequence = [
-      { type: "mp3", src: "/audio/ding-dong.mp3" },
-      { type: "tts", text: `Le chauffeur du bus pour ${data.destination} est attendu au ${data.platform}.` },
+    messages = [
+      `Le chauffeur du bus pour ${data.destination} est attendu au ${data.platform}.`,
     ];
     title = `Appel Chauffeur: ${data.destination}`;
   } else if (type === "emergency") {
     if (!data.message) {
       return { success: false, error: "Message d'urgence requis" };
     }
-    sequence = [
-      { type: "mp3", src: "/audio/ding-dong.mp3" },
-      { type: "tts", text: "Attention. Message important." },
-      { type: "tts", text: data.message },
+    messages = [
+      "Attention. Message important.",
+      data.message,
     ];
     title = `URGENCE: ${data.message}`;
     priority = 200;
@@ -173,7 +166,7 @@ export async function createManualAnnouncement(
         status: "pending",
         channel: "VOCAL_PA",
         scheduledAt: new Date(),
-        payload: JSON.stringify(sequence),
+        payload: JSON.stringify(messages),
         title,
         priority,
       },
