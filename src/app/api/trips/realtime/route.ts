@@ -1,7 +1,8 @@
 // ─── GET /api/trips/realtime?stationId=xxx ─────────────────────────────────────────
 //
 // Endpoint temps réel pour le kiosk KioskDisplay.
-// Retourne les départs et arrivées actifs, mis à jour par polling 30s.
+// CORRECTION BUG : garde les bus "PARTI" pendant 10 min pour que
+// l'interface affiche le badge gris "PARTI" au lieu de rester figée.
 //
 // No auth required — kiosk is a public-facing display.
 //
@@ -21,39 +22,38 @@ export async function GET(request: Request) {
   }
 
   const now = new Date();
-  const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
-  const twelveHoursAhead = new Date(now.getTime() + 12 * 60 * 60 * 1000);
+  const tenMinutesAgo = new Date(now.getTime() - 10 * 60 * 1000); // Garde les trajets récents 10 min
 
   const formatTime = (date: Date) =>
     date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 
   const [departures, arrivals] = await Promise.all([
-    // Départs : référence = departureTime, exclure les partis et annulés
+    // Départs : garde les PARTI pendant 10 min, exclut seulement les ANNULÉS
     db.trip.findMany({
       where: {
         line: { stationId },
         type: "departure",
-        status: { notIn: ["departed", "cancelled"] },
-        departureTime: { gte: twoHoursAgo, lte: twelveHoursAhead },
+        departureTime: { gte: tenMinutesAgo },
+        status: { not: "cancelled" },
         deletedAt: null,
       },
       include: { line: true },
       orderBy: { departureTime: "asc" },
-      take: 12,
+      take: 15,
     }),
 
-    // Arrivées : référence = estimatedArrival, exclure les arrivés et annulés
+    // Arrivées : garde les ARRIVÉS pendant 10 min, exclut seulement les ANNULÉS
     db.trip.findMany({
       where: {
         line: { stationId },
         type: "arrival",
-        status: { notIn: ["arrived", "cancelled"] },
-        estimatedArrival: { gte: twoHoursAgo, lte: twelveHoursAhead },
+        estimatedArrival: { gte: tenMinutesAgo },
+        status: { not: "cancelled" },
         deletedAt: null,
       },
       include: { line: true },
       orderBy: { estimatedArrival: "asc" },
-      take: 12,
+      take: 15,
     }),
   ]);
 

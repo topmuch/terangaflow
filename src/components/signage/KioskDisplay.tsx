@@ -2,9 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bus, ArrowUpRight, ArrowDownLeft, Clock } from "lucide-react";
-
-// ─── Types ──────────────────────────────────────────────────────────────────────
+import { Bus, ArrowUpRight, ArrowDownLeft, Calendar } from "lucide-react";
 
 type ViewType = "DEPARTS" | "ARRIVEES";
 
@@ -24,70 +22,6 @@ interface KioskDisplayProps {
   stationId: string;
 }
 
-// ─── Helpers ────────────────────────────────────────────────────────────────────
-
-const formatDate = (date: Date) =>
-  date
-    .toLocaleDateString("en-GB", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    })
-    .toUpperCase();
-
-const formatClock = (date: Date) =>
-  date.toLocaleTimeString("fr-FR", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
-
-const getStatusLabel = (status: string, delay?: number | null) => {
-  switch (status) {
-    case "SCHEDULED":
-      return "À L'HEURE";
-    case "BOARDING":
-      return "EMBARQUEMENT";
-    case "DEPARTURE_IMMINENT":
-      return "DÉPART IMMINENT";
-    case "ARRIVAL_IMMINENT":
-      return "ARRIVÉE IMMINENTE";
-    case "DELAYED":
-      return `EN RETARD +${delay || 0}MIN`;
-    case "ARRIVED":
-      return "ARRIVÉ";
-    case "CANCELLED":
-      return "ANNULÉ";
-    default:
-      return status;
-  }
-};
-
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case "SCHEDULED":
-      return "text-green-400 bg-green-500/10 border-green-500/30";
-    case "BOARDING":
-      return "text-amber-400 bg-amber-500/10 border-amber-500/30 animate-pulse";
-    case "DEPARTURE_IMMINENT":
-      return "text-orange-400 bg-orange-500/10 border-orange-500/30 animate-pulse";
-    case "ARRIVAL_IMMINENT":
-      return "text-cyan-400 bg-cyan-500/10 border-cyan-500/30 animate-pulse";
-    case "DELAYED":
-      return "text-red-500 bg-red-500/10 border-red-500/30";
-    case "ARRIVED":
-      return "text-blue-400 bg-blue-500/10 border-blue-500/30";
-    case "CANCELLED":
-      return "text-slate-400 bg-slate-500/10 border-slate-500/30 line-through";
-    default:
-      return "text-slate-300 bg-slate-800 border-slate-700";
-  }
-};
-
-// ═══════════════════════════════════════════════════════════════════════════════
-//  KioskDisplay Component
-// ═══════════════════════════════════════════════════════════════════════════════
-
 export default function KioskDisplay({
   stationName,
   initialDepartures,
@@ -97,15 +31,8 @@ export default function KioskDisplay({
   const [currentView, setCurrentView] = useState<ViewType>("DEPARTS");
   const [departures, setDepartures] = useState(initialDepartures);
   const [arrivals, setArrivals] = useState(initialArrivals);
-  const [currentTime, setCurrentTime] = useState(new Date());
 
-  // 1. Horloge temps réel
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  // 2. Transition Slide automatique toutes les 2 minutes (120 000 ms)
+  // 1. Transition Slide automatique toutes les 2 minutes (120 000 ms)
   useEffect(() => {
     const slideTimer = setInterval(() => {
       setCurrentView((prev) => (prev === "DEPARTS" ? "ARRIVEES" : "DEPARTS"));
@@ -113,7 +40,7 @@ export default function KioskDisplay({
     return () => clearInterval(slideTimer);
   }, []);
 
-  // 3. Polling temps réel toutes les 30s
+  // 2. Polling temps réel toutes les 15s (CORRECTION DU BUG : force la mise à jour du statut PARTI)
   useEffect(() => {
     const pollData = async () => {
       try {
@@ -128,50 +55,106 @@ export default function KioskDisplay({
       }
     };
 
-    const pollInterval = setInterval(pollData, 30000);
+    const pollInterval = setInterval(pollData, 15000); // 15 secondes pour une réactivité immédiate
     return () => clearInterval(pollInterval);
   }, [stationId]);
+
+  // Formatage de la date EXACT comme le fichier joint : "02 JUN 2026"
+  const formatDate = (date: Date) =>
+    date
+      .toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      })
+      .toUpperCase();
+
+  const getStatusLabel = (status: string, delay?: number | null) => {
+    switch (status) {
+      case "SCHEDULED":
+        return "À L'HEURE";
+      case "BOARDING":
+        return "EMBARQUEMENT";
+      case "DEPARTURE_IMMINENT":
+        return "DÉPART IMMINENT";
+      case "DELAYED":
+        return `EN RETARD +${delay || 0}MIN`;
+      case "ARRIVED":
+        return "ARRIVÉ";
+      case "DEPARTED":
+        return "PARTI";
+      case "CANCELLED":
+        return "ANNULÉ";
+      default:
+        return status;
+    }
+  };
+
+  // BOUTONS COLORÉS EXPLICITES
+  const getStatusStyle = (status: string) => {
+    switch (status) {
+      case "SCHEDULED":
+        return "bg-green-500/20 text-green-400 border-2 border-green-500";
+      case "BOARDING":
+        return "bg-yellow-500/20 text-yellow-400 border-2 border-yellow-500 animate-pulse";
+      case "DEPARTURE_IMMINENT":
+        return "bg-red-500/20 text-red-400 border-2 border-red-500 animate-pulse";
+      case "DELAYED":
+        return "bg-red-600/20 text-red-500 border-2 border-red-600 animate-pulse";
+      case "ARRIVED":
+        return "bg-blue-500/20 text-blue-400 border-2 border-blue-500";
+      case "DEPARTED":
+        return "bg-slate-500/20 text-slate-400 border-2 border-slate-500"; // Gris pour Parti
+      case "CANCELLED":
+        return "bg-slate-600/20 text-slate-400 border-2 border-slate-600 line-through";
+      default:
+        return "bg-slate-800 text-slate-300 border-2 border-slate-700";
+    }
+  };
 
   const currentData = currentView === "DEPARTS" ? departures : arrivals;
   const locationLabel = currentView === "DEPARTS" ? "DESTINATION" : "PROVENANCE";
   const Icon = currentView === "DEPARTS" ? ArrowUpRight : ArrowDownLeft;
 
+  // COLORIS DIFFÉRENT POUR LES ARRIVÉES (Bleu au lieu de Cyan)
+  const themeBorder = currentView === "DEPARTS" ? "border-cyan-500" : "border-blue-500";
+  const themeText = currentView === "DEPARTS" ? "text-cyan-400" : "text-blue-400";
+  const themeBg = currentView === "DEPARTS" ? "from-cyan-500 to-blue-600" : "from-blue-500 to-indigo-600";
+
   return (
     <div className="min-h-screen bg-slate-950 text-white flex flex-col font-sans overflow-hidden select-none">
-      {/* ═══ HEADER ═══ */}
-      <header className="bg-slate-900 border-b-4 border-cyan-500 p-6 flex items-center justify-between shadow-2xl">
+      {/* HEADER (Sans horloge, juste la date) */}
+      <header className={`bg-slate-900 border-b-4 ${themeBorder} p-6 flex items-center justify-between shadow-2xl`}>
         <div className="flex items-center gap-4">
-          <div className="bg-gradient-to-br from-cyan-500 to-blue-600 p-3 rounded-xl shadow-lg shadow-cyan-500/20">
+          <div className={`bg-gradient-to-br ${themeBg} p-3 rounded-xl shadow-lg`}>
             <Bus className="w-10 h-10 text-white" />
           </div>
           <div>
             <h1 className="text-4xl font-black tracking-tight text-white">
               TerangaFlow
             </h1>
-            <p className="text-cyan-400 font-bold text-xl tracking-wide">
+            <p className={`${themeText} font-bold text-xl tracking-wide`}>
               {stationName.toUpperCase()}
             </p>
           </div>
         </div>
 
+        {/* DATE SEULEMENT (Horloge supprimée) */}
         <div className="text-right">
-          <div className="text-5xl font-mono font-bold text-white tracking-wider">
-            {formatClock(currentTime)}
-          </div>
-          <div className="flex items-center justify-end gap-2 text-2xl text-slate-400 font-bold mt-1">
-            <Clock className="w-6 h-6" />
-            {formatDate(currentTime)}
+          <div className="flex items-center justify-end gap-3 text-3xl font-bold text-slate-300">
+            <Calendar className="w-8 h-8" />
+            {formatDate(new Date())}
           </div>
         </div>
       </header>
 
-      {/* ═══ BARRE DE NAVIGATION & PROGRESSION (2 MIN) ═══ */}
+      {/* BARRE DE NAVIGATION & PROGRESSION (2 MIN) */}
       <div className="bg-slate-900/80 px-8 py-4 flex items-center justify-between border-b border-slate-800">
         <div className="flex gap-12">
           <div
             className={`text-3xl font-black tracking-wider transition-all duration-500 ${
               currentView === "DEPARTS"
-                ? "text-cyan-400 scale-105"
+                ? `${themeText} scale-105`
                 : "text-slate-600"
             }`}
           >
@@ -180,7 +163,7 @@ export default function KioskDisplay({
           <div
             className={`text-3xl font-black tracking-wider transition-all duration-500 ${
               currentView === "ARRIVEES"
-                ? "text-blue-400 scale-105"
+                ? `${themeText} scale-105`
                 : "text-slate-600"
             }`}
           >
@@ -191,7 +174,7 @@ export default function KioskDisplay({
         {/* Barre de progression visuelle de 2 minutes */}
         <div className="w-64 h-3 bg-slate-800 rounded-full overflow-hidden border border-slate-700">
           <motion.div
-            className="h-full bg-gradient-to-r from-cyan-500 to-blue-500"
+            className={`h-full bg-gradient-to-r ${themeBg}`}
             initial={{ width: "0%" }}
             animate={{ width: "100%" }}
             transition={{
@@ -204,7 +187,7 @@ export default function KioskDisplay({
         </div>
       </div>
 
-      {/* ═══ CONTENU PRINCIPAL AVEC TRANSITION SLIDE ═══ */}
+      {/* CONTENU PRINCIPAL AVEC TRANSITION SLIDE */}
       <main className="flex-1 p-8 relative flex flex-col">
         <AnimatePresence mode="wait">
           <motion.div
@@ -222,17 +205,17 @@ export default function KioskDisplay({
             className="flex-1 flex flex-col"
           >
             {/* EN-TÊTE DU TABLEAU */}
-            <div className="grid grid-cols-12 gap-4 p-6 bg-slate-900 rounded-t-2xl border-2 border-slate-800 border-b-0 text-slate-400 font-black text-2xl uppercase tracking-widest">
-              <div className="col-span-3 flex items-center gap-4">
-                <Clock className="w-8 h-8" /> HEURE
-              </div>
+            <div
+              className={`grid grid-cols-12 gap-4 p-6 bg-slate-900 rounded-t-2xl border-2 ${themeBorder} border-b-0 text-slate-400 font-black text-2xl uppercase tracking-widest`}
+            >
+              <div className="col-span-3 flex items-center gap-4">HEURE</div>
               <div className="col-span-6 flex items-center gap-4">
                 <Icon className="w-8 h-8" /> {locationLabel}
               </div>
               <div className="col-span-3 text-right">STATUT</div>
             </div>
 
-            {/* LISTE DES TRAJETS (VRAIES DONNÉES) */}
+            {/* LISTE DES TRAJETS */}
             <div className="bg-slate-900/50 rounded-b-2xl border-2 border-slate-800 border-t-0 flex-1 overflow-hidden">
               {currentData.length === 0 ? (
                 <div className="flex items-center justify-center h-64 text-slate-500 text-2xl font-bold">
@@ -249,7 +232,7 @@ export default function KioskDisplay({
                   >
                     {/* HEURE */}
                     <div className="col-span-3 flex items-center gap-4">
-                      <span className="text-4xl font-mono font-bold text-white">
+                      <span className="text-5xl font-mono font-bold text-white">
                         {trip.time}
                       </span>
                     </div>
@@ -261,17 +244,17 @@ export default function KioskDisplay({
                           {trip.location}
                         </span>
                         {trip.platform && (
-                          <span className="inline-block mt-2 px-3 py-1 bg-slate-800 border border-slate-700 rounded text-lg text-slate-300 font-bold">
-                            Quai {trip.platform}
+                          <span className="inline-block mt-2 px-4 py-1 bg-slate-800 border border-slate-700 rounded-lg text-xl text-slate-300 font-bold">
+                            {trip.platform}
                           </span>
                         )}
                       </div>
                     </div>
 
-                    {/* STATUT */}
+                    {/* STATUT (Bouton Coloré) */}
                     <div className="col-span-3 flex justify-end">
                       <span
-                        className={`px-6 py-3 rounded-xl text-2xl font-black border-2 ${getStatusColor(trip.status)}`}
+                        className={`px-6 py-3 rounded-xl text-2xl font-black border-2 ${getStatusStyle(trip.status)}`}
                       >
                         {getStatusLabel(trip.status, trip.delayMinutes)}
                       </span>
