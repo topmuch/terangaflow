@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import KioskDisplay from "@/components/signage/KioskDisplay";
 import { AutoAnnouncer } from "@/components/signage/AutoAnnouncer";
+import AdFullscreenPlayer from "@/components/signage/AdFullscreenPlayer";
 
 export const revalidate = 30; // Revalide les données toutes les 30 secondes côté serveur
 
@@ -91,6 +92,8 @@ export default async function DisplayPage({
       />
       {/* Auto Announcer — polls for pending announcements and plays them */}
       <AutoAnnouncer stationId={stationId} />
+      {/* Fullscreen Ad Player — overlays kiosk display when an ad is scheduled */}
+      <AdFullscreenPlayer stationId={stationId} />
     </>
   );
 }

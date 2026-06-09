@@ -231,6 +231,7 @@ model Station {
   tickerMessages     TickerMessage[]
   transitionLogs     TransitionLog[]
   users              User[]
+  kioskAds           KioskAd[]
 
   @@index([city])
   @@index([isActive])
@@ -338,4 +339,21 @@ model User {
   @@index([stationId])
   @@index([tenantId])
   @@index([email])
+}
+
+model KioskAd {
+  id              String    @id @default(cuid())
+  stationId       String
+  name            String
+  type            String    @default("IMAGE") // 'YOUTUBE', 'VIDEO', 'IMAGE'
+  url             String
+  durationSeconds Int       @default(15)
+  intervalMinutes Int       @default(30)
+  isActive        Boolean   @default(true)
+  lastPlayedAt    DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  station         Station   @relation(fields: [stationId], references: [id], onDelete: Cascade)
+
+  @@index([stationId, isActive])
 }
