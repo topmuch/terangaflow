@@ -46,9 +46,9 @@ export function AutoAnnouncer({ stationId }: AutoAnnouncerProps) {
     const unlock = () => {
       try {
         // Test silencieux pour débloquer l'AudioContext & SpeechSynthesis
-        const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-        if (!AudioCtx) return;
-        const ctx = new AudioCtx();
+        const ACtor = window.AudioContext || (window as any).webkitAudioContext;
+        if (!ACtor) return;
+        const ctx = new ACtor();
         const osc = ctx.createOscillator();
         osc.connect(ctx.destination);
         osc.start();
@@ -177,9 +177,9 @@ export function AutoAnnouncer({ stationId }: AutoAnnouncerProps) {
       <button
         className="fixed bottom-4 right-4 z-50 flex items-center gap-3 bg-amber-500 hover:bg-amber-600 text-black px-5 py-3.5 rounded-xl font-bold shadow-2xl cursor-pointer transition-all hover:scale-105 animate-pulse"
         onClick={() => {
-          const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-          if (!AudioCtx) return;
-          const ctx = new AudioCtx();
+          const ACtor = window.AudioContext || (window as any).webkitAudioContext;
+          if (!ACtor) return;
+          const ctx = new ACtor();
           const osc = ctx.createOscillator();
           osc.connect(ctx.destination);
           osc.start();

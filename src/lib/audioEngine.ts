@@ -15,13 +15,13 @@
 export function playDingDong(): Promise<void> {
   return new Promise((resolve) => {
     try {
-      const AudioContext = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      if (!AudioContext) {
+      const ACtor = window.AudioContext || (window as any).webkitAudioContext;
+      if (!ACtor) {
         resolve();
         return;
       }
 
-      const ctx = new AudioContext();
+      const ctx = new ACtor();
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
 
