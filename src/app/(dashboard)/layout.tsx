@@ -18,6 +18,7 @@ import {
   Upload,
   Volume2,
   Store,
+  Tv,
   Moon,
   Sun,
 } from "lucide-react";
@@ -116,6 +117,12 @@ const STATION_NAV: NavItem[] = [
     title: "Campagnes pub",
     href: "/station/_SID_/campaigns",
     icon: Megaphone,
+    roles: ["SUPERADMIN", "STATION_MANAGER"],
+  },
+  {
+    title: "Pubs Kiosk",
+    href: "/station/_SID_/kiosk-ads",
+    icon: Tv,
     roles: ["SUPERADMIN", "STATION_MANAGER"],
   },
   {
