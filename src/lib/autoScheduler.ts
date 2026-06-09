@@ -1,4 +1,4 @@
-// ─── Auto Scheduler ───────────────────────────────────────────────────────────────
+// ─── Auto Scheduler (Range-Based Triggers) ──────────────────────────────────────
 //
 // PLANIFICATEUR AUTOMATIQUE DES ANNONCES PA
 //
@@ -7,18 +7,22 @@
 //
 // Appelé par /api/announcements/check-auto (POST) toutes les 3s par le kiosk.
 //
+// Déclencheurs par PLAGE de minutes (range-based) au lieu de minute exacte :
+//   ✅ Plus robuste : le polling toutes les 3s ne rate jamais un déclencheur
+//   ✅ Comportement identique à une horloge ferroviaire SNCF
+//   ✅ La déduplication via enqueueIfNew empêche les annonces en double
+//
 // CYCLE DES DÉPARTS :
-//   T-30min → status: boarding + annonce d'embarquement
-//   T-15min → rappel 15 minutes
-//   T-10min → rappel 10 minutes
-//   T-5min  → rappel 5 minutes
-//   T-2min  → dernier appel
-//   T-1min  → départ imminent
-//   H+1min  → status: departed + annonce de départ
+//   diff ∈ ]30, +∞]    → (aucune action)
+//   diff ∈ ]15, 30]     → T-30 : status boarding + annonce embarquement
+//   diff ∈ ]5, 15]      → T-15 : rappel 15 minutes
+//   diff ∈ [0, 5]       → T-5  : rappel 5 minutes + dernier appel
+//   diff < 0            → H+0  : status departed + annonce de départ
 //
 // CYCLE DES ARRIVÉES :
-//   T-10min → status: arrival_imminent + annonce d'arrivée imminente
-//   H+0min  → status: arrived + annonce d'arrivée
+//   diff ∈ ]10, +∞]    → (aucune action)
+//   diff ∈ (0, 10]      → T-10 : status arrival_imminent + annonce
+//   diff <= 0           → H+0  : status arrived + annonce
 //
 // ACCUEIL :
 //   Toutes les heures pile (xx:00) → message de bienvenue
@@ -96,10 +100,10 @@ export async function checkAndTriggerAutomatedAnnouncements(stationId: string) {
     const platform = trip.platform ?? "à déterminer";
     const typePrefix = trip.type === "departure" ? "dep" : "arr";
 
-    // ── DÉPARTS ──────────────────────────────────────────────────────────────────
+    // ── DÉPARTS (Range-Based) ─────────────────────────────────────────────────
     if (trip.type === "departure") {
-      // T-30min : Embarquement (scheduled → boarding)
-      if (diff === 30 && trip.status === "scheduled") {
+      // diff ∈ ]15, 30] : Embarquement (scheduled → boarding)
+      if (diff <= 30 && diff > 15 && trip.status === "scheduled") {
         await db.trip.update({
           where: { id: trip.id },
           data: { status: "boarding" },
@@ -113,12 +117,12 @@ export async function checkAndTriggerAutomatedAnnouncements(stationId: string) {
         );
         if (created) {
           triggeredCount++;
-          console.log(`[autoScheduler] ✅ BOARDING: ${dest} (T-30min)`);
+          console.log(`[autoScheduler] ✅ BOARDING: ${dest} (diff=${diff})`);
         }
       }
 
-      // T-15min : Rappel
-      else if (diff === 15 && trip.status === "boarding") {
+      // diff ∈ ]5, 15] : Rappel 15 minutes
+      else if (diff <= 15 && diff > 5 && trip.status === "boarding") {
         const created = await enqueueIfNew(
           stationId,
           `${typePrefix}_${trip.id}_15`,
@@ -126,64 +130,52 @@ export async function checkAndTriggerAutomatedAnnouncements(stationId: string) {
         );
         if (created) {
           triggeredCount++;
-          console.log(`[autoScheduler] ✅ 15min reminder: ${dest}`);
+          console.log(`[autoScheduler] ✅ 15min reminder: ${dest} (diff=${diff})`);
         }
       }
 
-      // T-10min : Rappel
-      else if (diff === 10 && trip.status === "boarding") {
-        const created = await enqueueIfNew(
-          stationId,
-          `${typePrefix}_${trip.id}_10`,
-          [`Le bus à destination de ${dest} partira dans 10 minutes.`]
-        );
-        if (created) {
-          triggeredCount++;
-          console.log(`[autoScheduler] ✅ 10min reminder: ${dest}`);
-        }
-      }
-
-      // T-5min : Rappel
-      else if (diff === 5 && trip.status === "boarding") {
-        const created = await enqueueIfNew(
+      // diff ∈ [0, 5] : Rappel 5 minutes + dernier appel
+      else if (diff <= 5 && diff >= 0 && (trip.status === "boarding" || trip.status === "delayed")) {
+        // Rappel 5min
+        const created5 = await enqueueIfNew(
           stationId,
           `${typePrefix}_${trip.id}_5`,
           [`Le bus à destination de ${dest} partira dans 5 minutes.`]
         );
-        if (created) {
+        if (created5) {
           triggeredCount++;
-          console.log(`[autoScheduler] ✅ 5min reminder: ${dest}`);
+          console.log(`[autoScheduler] ✅ 5min reminder: ${dest} (diff=${diff})`);
+        }
+
+        // Dernier appel (seulement dans les 2 dernières minutes)
+        if (diff <= 2) {
+          const created2 = await enqueueIfNew(
+            stationId,
+            `${typePrefix}_${trip.id}_2`,
+            [`Dernier appel pour les voyageurs à destination de ${dest}.`]
+          );
+          if (created2) {
+            triggeredCount++;
+            console.log(`[autoScheduler] ✅ Last call: ${dest} (diff=${diff})`);
+          }
+        }
+
+        // Départ imminent (dernière minute)
+        if (diff <= 1) {
+          const created1 = await enqueueIfNew(
+            stationId,
+            `${typePrefix}_${trip.id}_1`,
+            [`Le départ du bus est imminent. Veuillez rejoindre votre véhicule et prendre place.`]
+          );
+          if (created1) {
+            triggeredCount++;
+            console.log(`[autoScheduler] ✅ Imminent departure: ${dest} (diff=${diff})`);
+          }
         }
       }
 
-      // T-2min : Dernier appel
-      else if (diff === 2 && (trip.status === "boarding" || trip.status === "delayed")) {
-        const created = await enqueueIfNew(
-          stationId,
-          `${typePrefix}_${trip.id}_2`,
-          [`Dernier appel pour les voyageurs à destination de ${dest}.`]
-        );
-        if (created) {
-          triggeredCount++;
-          console.log(`[autoScheduler] ✅ Last call: ${dest}`);
-        }
-      }
-
-      // T-1min : Départ imminent
-      else if (diff === 1 && (trip.status === "boarding" || trip.status === "delayed")) {
-        const created = await enqueueIfNew(
-          stationId,
-          `${typePrefix}_${trip.id}_1`,
-          [`Le départ du bus est imminent. Veuillez rejoindre votre véhicule et prendre place.`]
-        );
-        if (created) {
-          triggeredCount++;
-          console.log(`[autoScheduler] ✅ Imminent departure: ${dest}`);
-        }
-      }
-
-      // H+1min : Parti (anything → departed)
-      else if (diff === -1 && trip.status !== "departed" && trip.status !== "cancelled") {
+      // diff < 0 : Parti (anything → departed)
+      else if (diff < 0 && trip.status !== "departed" && trip.status !== "cancelled") {
         await db.trip.update({
           where: { id: trip.id },
           data: { status: "departed" },
@@ -195,15 +187,15 @@ export async function checkAndTriggerAutomatedAnnouncements(stationId: string) {
         );
         if (created) {
           triggeredCount++;
-          console.log(`[autoScheduler] ✅ DEPARTED: ${dest}`);
+          console.log(`[autoScheduler] ✅ DEPARTED: ${dest} (diff=${diff})`);
         }
       }
     }
 
-    // ── ARRIVÉES ─────────────────────────────────────────────────────────────────
+    // ── ARRIVÉES (Range-Based) ───────────────────────────────────────────────
     if (trip.type === "arrival") {
-      // T-10min : Arrivée imminente (scheduled → arrival_imminent)
-      if (diff === 10 && trip.status === "scheduled") {
+      // diff ∈ (0, 10] : Arrivée imminente (scheduled → arrival_imminent)
+      if (diff <= 10 && diff > 0 && trip.status === "scheduled") {
         await db.trip.update({
           where: { id: trip.id },
           data: { status: "arrival_imminent" },
@@ -217,12 +209,12 @@ export async function checkAndTriggerAutomatedAnnouncements(stationId: string) {
         );
         if (created) {
           triggeredCount++;
-          console.log(`[autoScheduler] ✅ ARRIVAL_IMMINENT: ${dest}`);
+          console.log(`[autoScheduler] ✅ ARRIVAL_IMMINENT: ${dest} (diff=${diff})`);
         }
       }
 
-      // H+0min : Arrivé
-      else if (diff === 0 && trip.status !== "arrived" && trip.status !== "cancelled") {
+      // diff <= 0 : Arrivé
+      else if (diff <= 0 && trip.status !== "arrived" && trip.status !== "cancelled") {
         await db.trip.update({
           where: { id: trip.id },
           data: { status: "arrived" },
@@ -236,7 +228,7 @@ export async function checkAndTriggerAutomatedAnnouncements(stationId: string) {
         );
         if (created) {
           triggeredCount++;
-          console.log(`[autoScheduler] ✅ ARRIVED: ${dest}`);
+          console.log(`[autoScheduler] ✅ ARRIVED: ${dest} (diff=${diff})`);
         }
       }
     }

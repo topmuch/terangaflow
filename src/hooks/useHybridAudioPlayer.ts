@@ -12,7 +12,9 @@ export type AudioSegment =
 function playDingDong(): Promise<void> {
   return new Promise((resolve) => {
     try {
-      const ctx = new AudioContext();
+      const ACtor2 = window.AudioContext || (window as any).webkitAudioContext;
+      if (!ACtor2) { resolve(); return; }
+      const ctx = new ACtor2();
       const gainNode = ctx.createGain();
       gainNode.connect(ctx.destination);
       gainNode.gain.value = 0.35;
@@ -66,7 +68,9 @@ export function useHybridAudioPlayer() {
     synthRef.current = window.speechSynthesis;
     // Also unlock Web Audio API
     try {
-      const ctx = new AudioContext();
+      const ACtor = window.AudioContext || (window as any).webkitAudioContext;
+      if (!ACtor) return;
+      const ctx = new ACtor();
       if (ctx.state === "suspended") ctx.resume();
       ctx.close();
     } catch {

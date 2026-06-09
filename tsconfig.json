@@ -42,6 +42,7 @@
     "mini-services",
     ".zscripts",
     "skills",
+    "scripts",
     "prisma/seed.ts",
     "prisma/seed-rules.ts"
   ]
