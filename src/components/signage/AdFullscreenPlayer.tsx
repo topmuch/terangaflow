@@ -143,16 +143,20 @@ export default function AdFullscreenPlayer({ stationId }: AdFullscreenPlayerProp
 
           {/* CONTENU MÉDIA */}
           <div className="w-full h-full flex items-center justify-center bg-black">
-            {activeAd.type === "YOUTUBE" && (
-              <iframe
-                key={activeAd.id}
-                src={getYouTubeEmbedUrl(activeAd.url)}
-                className="w-full h-full border-0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                title={activeAd.name ?? "Publicité"}
-              />
-            )}
+            {activeAd.type === "YOUTUBE" && (() => {
+              const embedUrl = getYouTubeEmbedUrl(activeAd.url);
+              if (!embedUrl) return null; // URL YouTube invalide → sauter
+              return (
+                <iframe
+                  key={activeAd.id}
+                  src={embedUrl}
+                  className="w-full h-full border-0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  title={activeAd.name ?? "Publicité"}
+                />
+              );
+            })()}
 
             {activeAd.type === "VIDEO" && (
               <video
