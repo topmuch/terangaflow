@@ -5,6 +5,7 @@ export const TRIP_STATUS = {
   BOARDING: "BOARDING",
   DELAYED: "DELAYED",
   DEPARTURE_IMMINENT: "DEPARTURE_IMMINENT",
+  ARRIVAL_IMMINENT: "ARRIVAL_IMMINENT",
   DEPARTED: "DEPARTED",
   CANCELLED: "CANCELLED",
   ARRIVED: "ARRIVED",
@@ -44,6 +45,12 @@ export const TRIP_STATUS_CONFIG: Record<TripStatus, TripStatusConfig> = {
     label: "Départ imminent",
     color: "text-orange-700 dark:text-orange-400",
     bgColor: "bg-orange-100 dark:bg-orange-500/20",
+    priority: 3,
+  },
+  ARRIVAL_IMMINENT: {
+    label: "Arrivée imminente",
+    color: "text-cyan-700 dark:text-cyan-400",
+    bgColor: "bg-cyan-100 dark:bg-cyan-500/20",
     priority: 3,
   },
   DEPARTED: {

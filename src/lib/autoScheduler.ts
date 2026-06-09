@@ -1,74 +1,83 @@
 // ─── Auto Scheduler ───────────────────────────────────────────────────────────────
 //
-// AUTOMATIC TIME-BASED ANNOUNCEMENT SYSTEM (Zero-Click)
+// PLANIFICATEUR AUTOMATIQUE DES ANNONCES PA
 //
-// This module checks scheduled departure times vs current time and
-// automatically transitions trip statuses + enqueues PA announcements.
-// No user interaction needed. Called by /api/announcements/check-auto.
+// Système zéro-clic : les annonces sont déclenchées automatiquement
+// par rapport à l'heure de départ/arrivée prévue de chaque trip.
 //
-// RULES (hardcoded, no DB configuration):
-//   - T-15min : scheduled → boarding + boarding announcement
-//   - T-2min  : boarding → departure_imminent + imminent announcement
-//   - H+1min  : (any) → departed + departed announcement
-//   - Every 45min : baggage security reminder (time-window check)
-//   - Every 90min : valuables security reminder (time-window check)
+// Appelé par /api/announcements/check-auto (POST) toutes les 3s par le kiosk.
+//
+// CYCLE DES DÉPARTS :
+//   T-30min → status: boarding + annonce d'embarquement
+//   T-15min → rappel 15 minutes
+//   T-10min → rappel 10 minutes
+//   T-5min  → rappel 5 minutes
+//   T-2min  → dernier appel
+//   T-1min  → départ imminent
+//   H+1min  → status: departed + annonce de départ
+//
+// CYCLE DES ARRIVÉES :
+//   T-10min → status: arrival_imminent + annonce d'arrivée imminente
+//   H+0min  → status: arrived + annonce d'arrivée
+//
+// ACCUEIL :
+//   Toutes les heures pile (xx:00) → message de bienvenue
+//
+// RETARDS :
+//   Statut "delayed" → répétition automatique toutes les 5 min
 //
 
 import { db } from "@/lib/db";
 
-// ─── Types ──────────────────────────────────────────────────────────────────────
-
-type AudioSegment = { type: "mp3"; src: string } | { type: "tts"; text: string };
-
-// ─── Core Scheduler ──────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+//  CORE SCHEDULER
+// ═══════════════════════════════════════════════════════════════════════════════
 
 export async function checkAndTriggerAutomatedAnnouncements(stationId: string) {
   const now = new Date();
-  const todayStart = new Date(now);
-  todayStart.setHours(0, 0, 0, 0);
+  const currentHour = now.getHours();
+  const currentMinute = now.getMinutes();
+  const timeNow = currentHour * 60 + currentMinute;
 
   console.log(`[autoScheduler] 🔄 Checking station ${stationId} at ${now.toISOString()}`);
 
   let triggeredCount = 0;
 
-  // ═══ 1. AUTOMATIC REMINDERS (Hardcoded Schedule) ═══════════════════════════════
-  // Use time-window deduplication instead of once-per-day.
-  // This allows reminders to repeat at regular intervals.
+  // ═══ 1. ACCUEIL GÉNÉRAL (Toutes les heures pile) ══════════════════════════════
+  if (currentMinute === 0) {
+    const welcomeCreated = await enqueueIfNew(
+      stationId,
+      "welcome_hourly",
+      [
+        "Mesdames et Messieurs, bienvenue en gare. Nous vous souhaitons un agréable voyage. Les informations de circulation sont affichées sur les panneaux. Nous vous invitons à vérifier votre billet avant l'embarquement.",
+      ]
+    );
+    if (welcomeCreated) {
+      triggeredCount++;
+      console.log("[autoScheduler] 🎙️ Welcome hourly announcement enqueued");
+    }
+  }
 
-  // Baggage reminder: every 45 minutes
-  const baggageCreated = await createReminderIfExpired(
-    stationId,
-    "reminder_baggage",
-    45, // re-trigger every 45 min
-    [
-      { type: "mp3", src: "/audio/ding-dong.mp3" },
-      { type: "mp3", src: "/audio/rappel_bagages.mp3" },
-    ]
-  );
-  if (baggageCreated) triggeredCount++;
+  // ═══ 2. CYCLE DES DÉPARTS & ARRIVÉES ══════════════════════════════════════════
+  const windowStart = new Date(now.getTime() - 10 * 60 * 1000);  // -10 min margin
+  const windowEnd   = new Date(now.getTime() + 35 * 60 * 1000);   // +35 min ahead
 
-  // Valuables reminder: every 90 minutes
-  const valuablesCreated = await createReminderIfExpired(
-    stationId,
-    "reminder_valuables",
-    90, // re-trigger every 90 min
-    [
-      { type: "mp3", src: "/audio/ding-dong.mp3" },
-      { type: "mp3", src: "/audio/rappel_valeurs.mp3" },
-    ]
-  );
-  if (valuablesCreated) triggeredCount++;
-
-  // ═══ 2. TRIP DEPARTURE LIFECYCLE (Time-based) ══════════════════════════════════
-  // Fetch upcoming trips within a wider window (-10 to +30 min)
   const upcomingTrips = await db.trip.findMany({
     where: {
       line: { stationId },
-      status: { in: ["scheduled", "boarding", "delayed", "departure_imminent"] },
-      departureTime: {
-        gte: new Date(now.getTime() - 10 * 60 * 1000),  // -10 min margin
-        lte: new Date(now.getTime() + 30 * 60 * 1000), // +30 min ahead
-      },
+      status: { in: ["scheduled", "boarding", "delayed", "arrival_imminent"] },
+      OR: [
+        // Departures: filter by departureTime
+        {
+          type: "departure",
+          departureTime: { gte: windowStart, lte: windowEnd },
+        },
+        // Arrivals: filter by estimatedArrival
+        {
+          type: "arrival",
+          estimatedArrival: { gte: windowStart, lte: windowEnd },
+        },
+      ],
     },
     include: { line: true },
     orderBy: { departureTime: "asc" },
@@ -77,90 +86,194 @@ export async function checkAndTriggerAutomatedAnnouncements(stationId: string) {
   console.log(`[autoScheduler] 📋 Found ${upcomingTrips.length} upcoming trip(s)`);
 
   for (const trip of upcomingTrips) {
-    const timeDiffMs = trip.departureTime.getTime() - now.getTime();
-    const timeDiffMinutes = Math.floor(timeDiffMs / (1000 * 60));
+    // Use departureTime for departures, estimatedArrival for arrivals
+    const refTime =
+      trip.type === "arrival" ? trip.estimatedArrival : trip.departureTime;
+    const tripMinutes = refTime.getHours() * 60 + refTime.getMinutes();
+    const diff = tripMinutes - timeNow;
 
-    const destination = trip.line.name;
-    const platform = trip.platform || "à déterminer";
+    const dest = trip.line.name;
+    const platform = trip.platform ?? "à déterminer";
+    const typePrefix = trip.type === "departure" ? "dep" : "arr";
 
-    // ── T-15min : Embarquement (scheduled → boarding) ────────────────────
-    if (
-      timeDiffMinutes <= 15 &&
-      timeDiffMinutes > 10 &&
-      trip.status === "scheduled"
-    ) {
-      await db.trip.update({
-        where: { id: trip.id },
-        data: { status: "boarding" },
-      });
+    // ── DÉPARTS ──────────────────────────────────────────────────────────────────
+    if (trip.type === "departure") {
+      // T-30min : Embarquement (scheduled → boarding)
+      if (diff === 30 && trip.status === "scheduled") {
+        await db.trip.update({
+          where: { id: trip.id },
+          data: { status: "boarding" },
+        });
+        const created = await enqueueIfNew(
+          stationId,
+          `${typePrefix}_${trip.id}_30`,
+          [
+            `Votre attention s'il vous plaît. Le bus à destination de ${dest} partira dans 30 minutes depuis le quai ${platform}. Nous invitons les voyageurs à se préparer. Veuillez surveiller vos bagages et respecter les consignes de sécurité. Nous vous souhaitons un excellent voyage.`,
+          ]
+        );
+        if (created) {
+          triggeredCount++;
+          console.log(`[autoScheduler] ✅ BOARDING: ${dest} (T-30min)`);
+        }
+      }
 
-      const created = await createAnnouncementOnce(
-        stationId,
-        `board_${trip.id}`,
-        [
-          { type: "mp3", src: "/audio/ding-dong.mp3" },
-          { type: "tts", text: `Le bus à destination de ${destination} est en cours d'embarquement au quai ${platform}.` },
-        ],
-        todayStart
-      );
+      // T-15min : Rappel
+      else if (diff === 15 && trip.status === "boarding") {
+        const created = await enqueueIfNew(
+          stationId,
+          `${typePrefix}_${trip.id}_15`,
+          [`Le bus à destination de ${dest} partira dans 15 minutes.`]
+        );
+        if (created) {
+          triggeredCount++;
+          console.log(`[autoScheduler] ✅ 15min reminder: ${dest}`);
+        }
+      }
 
-      if (created) {
-        triggeredCount++;
-        console.log(`[autoScheduler] ✅ BOARDING: ${destination} (T-${timeDiffMinutes}min)`);
+      // T-10min : Rappel
+      else if (diff === 10 && trip.status === "boarding") {
+        const created = await enqueueIfNew(
+          stationId,
+          `${typePrefix}_${trip.id}_10`,
+          [`Le bus à destination de ${dest} partira dans 10 minutes.`]
+        );
+        if (created) {
+          triggeredCount++;
+          console.log(`[autoScheduler] ✅ 10min reminder: ${dest}`);
+        }
+      }
+
+      // T-5min : Rappel
+      else if (diff === 5 && trip.status === "boarding") {
+        const created = await enqueueIfNew(
+          stationId,
+          `${typePrefix}_${trip.id}_5`,
+          [`Le bus à destination de ${dest} partira dans 5 minutes.`]
+        );
+        if (created) {
+          triggeredCount++;
+          console.log(`[autoScheduler] ✅ 5min reminder: ${dest}`);
+        }
+      }
+
+      // T-2min : Dernier appel
+      else if (diff === 2 && (trip.status === "boarding" || trip.status === "delayed")) {
+        const created = await enqueueIfNew(
+          stationId,
+          `${typePrefix}_${trip.id}_2`,
+          [`Dernier appel pour les voyageurs à destination de ${dest}.`]
+        );
+        if (created) {
+          triggeredCount++;
+          console.log(`[autoScheduler] ✅ Last call: ${dest}`);
+        }
+      }
+
+      // T-1min : Départ imminent
+      else if (diff === 1 && (trip.status === "boarding" || trip.status === "delayed")) {
+        const created = await enqueueIfNew(
+          stationId,
+          `${typePrefix}_${trip.id}_1`,
+          [`Le départ du bus est imminent. Veuillez rejoindre votre véhicule et prendre place.`]
+        );
+        if (created) {
+          triggeredCount++;
+          console.log(`[autoScheduler] ✅ Imminent departure: ${dest}`);
+        }
+      }
+
+      // H+1min : Parti (anything → departed)
+      else if (diff === -1 && trip.status !== "departed" && trip.status !== "cancelled") {
+        await db.trip.update({
+          where: { id: trip.id },
+          data: { status: "departed" },
+        });
+        const created = await enqueueIfNew(
+          stationId,
+          `${typePrefix}_${trip.id}_departed`,
+          [`Le bus à destination de ${dest} vient de partir. Bon voyage.`]
+        );
+        if (created) {
+          triggeredCount++;
+          console.log(`[autoScheduler] ✅ DEPARTED: ${dest}`);
+        }
       }
     }
 
-    // ── T-2min : Départ Imminent (boarding/delayed → departure_imminent) ─────────
-    if (
-      timeDiffMinutes <= 2 &&
-      timeDiffMinutes >= -1 &&
-      (trip.status === "boarding" || trip.status === "delayed")
-    ) {
-      await db.trip.update({
-        where: { id: trip.id },
-        data: { status: "departure_imminent" },
-      });
+    // ── ARRIVÉES ─────────────────────────────────────────────────────────────────
+    if (trip.type === "arrival") {
+      // T-10min : Arrivée imminente (scheduled → arrival_imminent)
+      if (diff === 10 && trip.status === "scheduled") {
+        await db.trip.update({
+          where: { id: trip.id },
+          data: { status: "arrival_imminent" },
+        });
+        const created = await enqueueIfNew(
+          stationId,
+          `${typePrefix}_${trip.id}_10`,
+          [
+            `Le bus en provenance de ${dest} arrive dans quelques instants au quai ${platform}.`,
+          ]
+        );
+        if (created) {
+          triggeredCount++;
+          console.log(`[autoScheduler] ✅ ARRIVAL_IMMINENT: ${dest}`);
+        }
+      }
 
-      const created = await createAnnouncementOnce(
-        stationId,
-        `imminent_${trip.id}`,
-        [
-          { type: "mp3", src: "/audio/ding-dong.mp3" },
-          { type: "tts", text: `Dernier appel. Le bus pour ${destination} va partir dans 2 minutes. Quai ${platform}.` },
-        ],
-        todayStart
-      );
-
-      if (created) {
-        triggeredCount++;
-        console.log(`[autoScheduler] ✅ DEPARTURE_IMMINENT: ${destination} (T-${timeDiffMinutes}min)`);
+      // H+0min : Arrivé
+      else if (diff === 0 && trip.status !== "arrived" && trip.status !== "cancelled") {
+        await db.trip.update({
+          where: { id: trip.id },
+          data: { status: "arrived" },
+        });
+        const created = await enqueueIfNew(
+          stationId,
+          `${typePrefix}_${trip.id}_arrived`,
+          [
+            `Le bus en provenance de ${dest} est arrivé. Les passagers peuvent descendre et les colis sont disponibles au guichet. Veuillez surveiller vos effets personnels. Ne laissez aucun bagage sans surveillance. Tout bagage abandonné sera signalé aux services de sécurité.`,
+          ]
+        );
+        if (created) {
+          triggeredCount++;
+          console.log(`[autoScheduler] ✅ ARRIVED: ${dest}`);
+        }
       }
     }
+  }
 
-    // ── H+1min : Parti (anything → departed) ────────────────────────────
-    if (
-      timeDiffMinutes < -1 &&
-      trip.status !== "departed" &&
-      trip.status !== "cancelled"
-    ) {
-      await db.trip.update({
-        where: { id: trip.id },
-        data: { status: "departed" },
-      });
+  // ═══ 3. RETARDS (Répétition auto toutes les 5 min si statut = delayed) ════════
+  const delayedTrips = await db.trip.findMany({
+    where: {
+      line: { stationId },
+      status: "delayed",
+    },
+    include: { line: true },
+  });
 
-      const created = await createAnnouncementOnce(
+  for (const trip of delayedTrips) {
+    // Vérifier si une annonce de retard a été créée dans les 5 dernières minutes
+    const fiveMinAgo = new Date(now.getTime() - 5 * 60 * 1000);
+    const lastAnnounce = await db.announcementQueue.findFirst({
+      where: {
+        tripId: trip.id,
+        createdAt: { gte: fiveMinAgo },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (!lastAnnounce && trip.delayMinutes > 0) {
+      const created = await enqueueIfNew(
         stationId,
-        `departed_${trip.id}`,
+        `delay_${trip.id}_${Math.floor(now.getTime() / 60000)}`,
         [
-          { type: "mp3", src: "/audio/ding-dong.mp3" },
-          { type: "tts", text: `Le bus à destination de ${destination} vient de partir. Bon voyage !` },
+          `Le bus à destination de ${trip.line.name} subit actuellement un retard de ${trip.delayMinutes} minutes. Nous vous prions de nous excuser pour la gêne occasionnée. Merci de votre compréhension et de votre patience.`,
         ],
-        todayStart
+        trip.id
       );
-
       if (created) {
         triggeredCount++;
-        console.log(`[autoScheduler] ✅ DEPARTED: ${destination}`);
+        console.log(`[autoScheduler] ✅ DELAY repeat: ${trip.line.name} (${trip.delayMinutes}min)`);
       }
     }
   }
@@ -169,14 +282,27 @@ export async function checkAndTriggerAutomatedAnnouncements(stationId: string) {
   return { triggeredCount };
 }
 
-// ─── Helper: Create trip announcement once per day per key ──────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════════════════════════════════════════
 
-async function createAnnouncementOnce(
+/**
+ * Enqueue an announcement if one with the same `type` key
+ * hasn't been created in the last 24 hours.
+ *
+ * Payload is a JSON array of plain text strings.
+ * The client AutoAnnouncer will play each string via TTS
+ * preceded by a synthetic Ding-Dong.
+ */
+async function enqueueIfNew(
   stationId: string,
   uniqueKey: string,
-  payload: AudioSegment[],
-  todayStart: Date
+  messages: string[],
+  tripId?: string
 ): Promise<boolean> {
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
   const exists = await db.announcementQueue.findFirst({
     where: {
       stationId,
@@ -190,54 +316,17 @@ async function createAnnouncementOnce(
   await db.announcementQueue.create({
     data: {
       stationId,
+      tripId: tripId ?? null,
       type: uniqueKey,
       status: "pending",
       channel: "VOCAL_PA",
       scheduledAt: new Date(),
-      payload: JSON.stringify(payload),
+      payload: JSON.stringify(messages),
       title: uniqueKey,
+      message: messages.join(" "),
       priority: uniqueKey.startsWith("manual_") ? 150 : 50,
     },
   });
 
-  return true;
-}
-
-// ─── Helper: Create reminder if enough time has passed since last one ────────────
-
-async function createReminderIfExpired(
-  stationId: string,
-  reminderType: string,
-  intervalMinutes: number,
-  payload: AudioSegment[]
-): Promise<boolean> {
-  const cutoff = new Date(Date.now() - intervalMinutes * 60 * 1000);
-
-  // Check if a reminder of this type was created recently
-  const recent = await db.announcementQueue.findFirst({
-    where: {
-      stationId,
-      type: reminderType,
-      createdAt: { gte: cutoff },
-    },
-    orderBy: { createdAt: "desc" },
-  });
-
-  if (recent) return false; // Already triggered within interval
-
-  await db.announcementQueue.create({
-    data: {
-      stationId,
-      type: reminderType,
-      status: "pending",
-      channel: "VOCAL_PA",
-      scheduledAt: new Date(),
-      payload: JSON.stringify(payload),
-      title: reminderType,
-      priority: 30, // Lower priority than trip announcements
-    },
-  });
-
-  console.log(`[autoScheduler] 🔔 Reminder triggered: ${reminderType}`);
   return true;
 }

@@ -1,239 +1,97 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
+import { playAnnouncement } from "@/lib/audioEngine";
 
-// ─── Audio Segment Types (matching server-side) ─────────────────────────────────
-
-type AudioSegment = { type: "mp3"; src: string } | { type: "tts"; text: string; lang?: string };
+// ─── Types ─────────────────────────────────────────────────────────────────────
 
 interface QueueItem {
   id: string;
   type: string;
   title: string | null;
-  payload: string | null; // JSON audio segments
-  renderedMessage: string | null;
+  payload: string | null; // JSON array of text strings
   channel: string;
   priority: number;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //
-// ZERO-CLICK AUDIO POLICY:
+// KIOSK AUTO-ANNOUNCER
 //
-// Pour un fonctionnement "ZÉRO CLIC" garanti en production,
-// cet écran kiosk DOIT être affiché dans un navigateur avec l'option
-// "Autoriser l'autoplay" activée.
+// Politique ZÉRO AUDIO MP3:
+//   - Ding-Dong synthétisé via Web Audio API (2 tons : 880Hz → 660Hz)
+//   - TTS via window.speechSynthesis (fr-FR, vitesse 0.92 style gare SNCF)
+//   - Le payload contient un JSON array de textes
+//   - Chaque texte est joué : Ding-Dong → pause 600ms → TTS
 //
-// Options recommandées :
-//   - Fully Kiosk Browser (Android) → Settings → Advanced → Autoplay: Allow
-//   - Chrome/Edge avec le flag: --autoplay-policy=no-user-gesture-required
-//   - Un helper local Node.js pour la sortie audio (hors scope navigateur)
-//
-// Le code ci-dessous tente le déverrouillage automatique au premier render
-// ET réessaie à chaque cycle de polling si l'audio est toujours bloqué.
+// Pour un fonctionnement ZÉRO CLIC en production, l'écran kiosk DOIT
+// être dans un navigateur avec autoplay autorisé (Fully Kiosk, Chrome flag, etc.)
 //
 // ═══════════════════════════════════════════════════════════════════════════════
-
-// ─── Play MP3 File ────────────────────────────────────────────────────────────
-
-function playMp3(src: string): Promise<void> {
-  return new Promise((resolve) => {
-    try {
-      const audio = new Audio(src);
-      audio.onended = () => resolve();
-      audio.onerror = () => resolve();
-      audio.play().catch(() => resolve());
-    } catch {
-      resolve();
-    }
-  });
-}
-
-// ─── TTS Helper ─────────────────────────────────────────────────────────────
-
-function speak(text: string, lang = "fr-FR"): Promise<void> {
-  return new Promise((resolve) => {
-    try {
-      if (!window.speechSynthesis) {
-        resolve();
-        return;
-      }
-      window.speechSynthesis.cancel();
-
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = lang;
-      utterance.rate = 0.85;
-      utterance.pitch = 1.0;
-      utterance.volume = 1.0;
-      utterance.onend = () => resolve();
-      utterance.onerror = () => resolve();
-      window.speechSynthesis.speak(utterance);
-    } catch {
-      resolve();
-    }
-  });
-}
-
-// ─── Play Audio Sequence ─────────────────────────────────────────────────────
-
-async function playAudioSequence(segments: AudioSegment[]): Promise<void> {
-  try {
-    window.speechSynthesis?.cancel();
-  } catch {
-    // ignore
-  }
-
-  for (const segment of segments) {
-    if (segment.type === "mp3") {
-      console.log(`[AutoAnnouncer] 🎵 Playing: ${segment.src}`);
-      await playMp3(segment.src);
-      await new Promise((r) => setTimeout(r, 500));
-    } else if (segment.type === "tts") {
-      console.log(`[AutoAnnouncer] 🗣️ Speaking: "${segment.text}"`);
-      await speak(segment.text, segment.lang);
-      await new Promise((r) => setTimeout(r, 400));
-    }
-  }
-}
-
-// ─── AutoAnnouncer Component ───────────────────────────────────────────────
 
 interface AutoAnnouncerProps {
   stationId: string;
 }
 
 export function AutoAnnouncer({ stationId }: AutoAnnouncerProps) {
-  const [isAudioUnlocked, setIsAudioUnlocked] = useState(false);
+  const [isReady, setIsReady] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [lastTitle, setLastTitle] = useState<string | null>(null);
   const [totalPlayed, setTotalPlayed] = useState(0);
   const playingRef = useRef(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // ─── STEP 1: Attempt audio unlock ──────────────────────────────────────────
-  // Tries immediately on mount, plus on first user interaction as fallback.
+  // ─── STEP 1: Audio unlock ──────────────────────────────────────────────────
   useEffect(() => {
-    // Try immediate unlock (works in kiosk browsers with autoplay allowed)
-    const tryUnlock = () => {
+    const unlock = () => {
       try {
-        const audio = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=");
-        audio.volume = 0;
-        const playPromise = audio.play();
-        if (playPromise) {
-          playPromise
-            .then(() => {
-              audio.pause();
-              audio.currentTime = 0;
-              if (!isAudioUnlocked) {
-                setIsAudioUnlocked(true);
-                console.log("[AutoAnnouncer] ✅ Audio unlocked automatically (kiosk mode)");
-              }
-            })
-            .catch(() => {
-              // Autoplay blocked — will retry on user click
-            });
-        }
+        // Test silencieux pour débloquer l'AudioContext & SpeechSynthesis
+        const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        const osc = ctx.createOscillator();
+        osc.connect(ctx.destination);
+        osc.start();
+        setTimeout(() => {
+          ctx.close();
+          setIsReady(true);
+          console.log("[AutoAnnouncer] ✅ Audio unlocked");
+        }, 100);
+        window.speechSynthesis?.cancel();
       } catch {
         // ignore
       }
-    };
-
-    // Try immediately
-    tryUnlock();
-
-    // Fallback: try on first user click/touch
-    const unlock = () => {
-      tryUnlock();
       document.removeEventListener("click", unlock);
       document.removeEventListener("touchstart", unlock);
-      document.removeEventListener("keydown", unlock);
     };
 
     document.addEventListener("click", unlock);
     document.addEventListener("touchstart", unlock);
-    document.addEventListener("keydown", unlock);
+    // Tente un déverrouillage immédiat (kiosk mode)
+    unlock();
 
     return () => {
       document.removeEventListener("click", unlock);
       document.removeEventListener("touchstart", unlock);
-      document.removeEventListener("keydown", unlock);
     };
   }, []);
 
-  // ─── STEP 2: Process a single announcement from queue ─────────────────────
-  const processAnnouncement = useCallback(async (item: QueueItem) => {
-    if (playingRef.current) return;
-    playingRef.current = true;
-    setIsPlaying(true);
-    setLastTitle(item.title);
-
-    console.log(`[AutoAnnouncer] 📢 Processing: "${item.title}" (id: ${item.id.substring(0, 8)}...)`);
-
-    try {
-      let segments: AudioSegment[] | null = null;
-
-      if (item.payload) {
-        try {
-          segments = JSON.parse(item.payload) as AudioSegment[];
-          console.log(`[AutoAnnouncer] 📋 ${segments.length} audio segment(s)`);
-        } catch {
-          console.error("[AutoAnnouncer] Failed to parse payload");
-        }
-      }
-
-      // Fallback: use renderedMessage as TTS
-      if (!segments && item.renderedMessage) {
-        segments = [
-          { type: "mp3", src: "/audio/ding-dong.mp3" },
-          { type: "tts", text: item.renderedMessage },
-        ];
-      }
-
-      if (segments && segments.length > 0) {
-        await playAudioSequence(segments);
-        console.log("[AutoAnnouncer] ✅ Playback complete");
-      }
-
-      // Mark as played in DB
-      try {
-        const markRes = await fetch("/api/announcements/mark-played", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: item.id }),
-        });
-        if (markRes.ok) {
-          console.log(`[AutoAnnouncer] ✅ Marked as played`);
-        }
-      } catch (err) {
-        console.error("[AutoAnnouncer] Failed to mark as played:", err);
-      }
-
-      setTotalPlayed((prev) => prev + 1);
-    } catch (err) {
-      console.error("[AutoAnnouncer] ❌ Error:", err);
-    } finally {
-      playingRef.current = false;
-      setIsPlaying(false);
-      setLastTitle(null);
-    }
-  }, []);
-
-  // ─── STEP 3: Polling loop — check every 3 seconds ──────────────────────────
+  // ─── STEP 2: Polling + Lecture ───────────────────────────────────────────
   useEffect(() => {
-    if (!stationId) return;
+    if (!isReady || !stationId) return;
 
     console.log("[AutoAnnouncer] 🔄 Starting polling loop (every 3s)...");
 
-    const checkAndPlay = async () => {
+    const checkQueue = async () => {
       if (playingRef.current) return;
 
       try {
-        // 1. Trigger automatic scheduler (boarding, imminent, reminders)
+        // 1. Déclenche les annonces automatiques (départs, rappels, retards)
         await fetch(`/api/announcements/check-auto?stationId=${stationId}`, {
           method: "POST",
         }).catch(() => {});
 
-        // 2. Fetch pending announcements
+        // 2. Récupère la file d'attente
         const res = await fetch(
           `/api/announcements/pending?stationId=${stationId}`
         );
@@ -242,58 +100,94 @@ export function AutoAnnouncer({ stationId }: AutoAnnouncerProps) {
         const items: QueueItem[] = await res.json();
 
         if (items.length > 0) {
-          const first = items[0];
-          if (first) {
-            // If audio is locked, try to unlock before playing
-            if (!isAudioUnlocked) {
+          const next = items[0];
+          if (next) {
+            playingRef.current = true;
+            setIsPlaying(true);
+            setLastTitle(next.title);
+
+            console.log(
+              `[AutoAnnouncer] 📢 Processing: "${next.title}" (id: ${next.id.substring(0, 8)}...)`
+            );
+
+            // Parse payload: JSON array of text strings
+            let messages: string[] = [];
+            if (next.payload) {
               try {
-                const audio = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=");
-                audio.volume = 0;
-                await audio.play().catch(() => {});
-                audio.pause();
-                setIsAudioUnlocked(true);
-                console.log("[AutoAnnouncer] ✅ Audio unlocked via polling trigger");
+                messages = JSON.parse(next.payload) as string[];
               } catch {
-                // Still locked — skip this announcement
-                console.warn("[AutoAnnouncer] ⚠️ Audio still locked, skipping announcement");
-                return;
+                console.error("[AutoAnnouncer] Failed to parse payload");
               }
             }
 
-            await processAnnouncement(first);
+            // Joue chaque message séquentiellement (Ding-Dong + TTS)
+            if (messages.length > 0) {
+              console.log(
+                `[AutoAnnouncer] 📋 ${messages.length} message(s) to play`
+              );
+              for (const msg of messages) {
+                await playAnnouncement(msg);
+              }
+              console.log("[AutoAnnouncer] ✅ Playback complete");
+            }
+
+            // Marque comme joué
+            await fetch("/api/announcements/mark-played", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ id: next.id }),
+            })
+              .then((markRes) => {
+                if (markRes.ok) {
+                  console.log("[AutoAnnouncer] ✅ Marked as played");
+                }
+              })
+              .catch(() => {});
+
+            setTotalPlayed((prev) => prev + 1);
+            playingRef.current = false;
+            setIsPlaying(false);
+            setLastTitle(null);
           }
         }
       } catch (err) {
         console.error("[AutoAnnouncer] ❌ Poll error:", err);
+        playingRef.current = false;
+        setIsPlaying(false);
       }
     };
 
     // Check immediately
-    checkAndPlay();
+    checkQueue();
 
     // Poll every 3 seconds
-    pollRef.current = setInterval(checkAndPlay, 3000);
+    pollRef.current = setInterval(checkQueue, 3000);
 
     return () => {
       if (pollRef.current) {
         clearInterval(pollRef.current);
       }
     };
-  }, [stationId, isAudioUnlocked, processAnnouncement]);
+  }, [stationId, isReady]);
 
-  // ─── STEP 4: Render ─────────────────────────────────────────────────────────
-  // Show unlock button ONLY if audio is blocked (fallback for non-kiosk browsers)
-  if (!isAudioUnlocked) {
+  // ─── STEP 3: Render ──────────────────────────────────────────────────────
+  // Show unlock button if audio is blocked (non-kiosk browsers fallback)
+  if (!isReady) {
     return (
       <button
         className="fixed bottom-4 right-4 z-50 flex items-center gap-3 bg-amber-500 hover:bg-amber-600 text-black px-5 py-3.5 rounded-xl font-bold shadow-2xl cursor-pointer transition-all hover:scale-105 animate-pulse"
         onClick={() => {
-          const audio = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=");
-          audio.volume = 0;
-          audio.play().then(() => {
-            audio.pause();
-            setIsAudioUnlocked(true);
-          }).catch(() => {});
+          const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+          if (!AudioCtx) return;
+          const ctx = new AudioCtx();
+          const osc = ctx.createOscillator();
+          osc.connect(ctx.destination);
+          osc.start();
+          setTimeout(() => {
+            ctx.close();
+            setIsReady(true);
+          }, 100);
+          window.speechSynthesis?.cancel();
         }}
         aria-label="Activer le son de la gare"
       >

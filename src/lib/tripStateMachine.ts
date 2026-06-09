@@ -22,6 +22,7 @@ export interface TransitionEdge {
 export const TRANSITION_GRAPH: readonly TransitionEdge[] = [
   // From SCHEDULED
   { from: "SCHEDULED",  to: "BOARDING",            label: "Début d'embarquement", requiresReason: false },
+  { from: "SCHEDULED",  to: "ARRIVAL_IMMINENT",    label: "Arrivée imminente", requiresReason: false },
   { from: "SCHEDULED",  to: "DELAYED",             label: "Retard signalé", requiresReason: true },
   { from: "SCHEDULED",  to: "CANCELLED",           label: "Annulation", requiresReason: true },
 
@@ -38,6 +39,10 @@ export const TRANSITION_GRAPH: readonly TransitionEdge[] = [
   // From DEPARTURE_IMMINENT
   { from: "DEPARTURE_IMMINENT", to: "DEPARTED",    label: "Départ effectif", requiresReason: false },
   { from: "DEPARTURE_IMMINENT", to: "CANCELLED",   label: "Annulation", requiresReason: true },
+
+  // From ARRIVAL_IMMINENT
+  { from: "ARRIVAL_IMMINENT", to: "ARRIVED",        label: "Arrivée effective", requiresReason: false },
+  { from: "ARRIVAL_IMMINENT", to: "CANCELLED",      label: "Annulation", requiresReason: true },
 
   // From DEPARTED
   { from: "DEPARTED",   to: "ARRIVED",             label: "Arrivée à destination", requiresReason: false },

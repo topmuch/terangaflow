@@ -295,6 +295,7 @@ model Trip {
   id               String          @id @default(cuid())
   lineId           String
   operatorName     String
+  type             String          @default("departure") // "departure" | "arrival"
   departureTime    DateTime
   estimatedArrival DateTime
   status           String          @default("scheduled")
@@ -308,6 +309,7 @@ model Trip {
   line             Line            @relation(fields: [lineId], references: [id], onDelete: Cascade)
 
   @@index([status])
+  @@index([type])
   @@index([departureTime])
   @@index([lineId])
 }
